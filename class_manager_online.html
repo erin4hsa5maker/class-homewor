@@ -22,7 +22,22 @@
         * { box-sizing: border-box; font-family: "Helvetica Neue", Helvetica, "PingFang TC", "LiHei Pro", "Microsoft JhengHei", sans-serif; }
         body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); }
         
-        /* Loading Overlay */
+        /* Loading & Login Overlays */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 10000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .login-box {
+            background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            text-align: center; max-width: 90%; width: 350px;
+        }
+        #loginOverlay input {
+            padding: 12px; font-size: 1.1rem; width: 100%; margin-bottom: 15px; border: 2px solid var(--border); border-radius: 8px; outline: none; transition: border-color 0.2s;
+        }
+        #loginOverlay input:focus { border-color: var(--primary); }
+        #pwdError { color: var(--warning); display: none; margin-top: 10px; font-weight: bold; font-size: 0.9rem;}
+
         #loadingOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.9); z-index: 9999;
@@ -112,6 +127,7 @@
         .student-setting-row .row-index { flex: 0 0 30px; min-width: 30px; font-weight: bold; color: #64748b; text-align: center; }
 
         .export-box { display:flex; flex-wrap: wrap; gap:10px; margin-top: 15px; background: #e2e8f0; padding: 15px; border-radius: 8px; align-items: center; }
+        .backup-box { display:flex; flex-wrap: wrap; gap:10px; margin-top: 10px; background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; align-items: center; }
 
         /* Student Detail Modal */
         .subject-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
@@ -138,6 +154,18 @@
 </head>
 <body>
 
+    <!-- 密碼登入畫面 -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2 style="margin-top:0; color: var(--primary);">班級作業單解鎖</h2>
+            <p style="color: #666; font-size: 0.9rem; margin-bottom: 20px;">請輸入系統密碼以存取資料</p>
+            <input type="password" id="passwordInput" placeholder="輸入密碼" onkeypress="if(event.key === 'Enter') checkPassword()">
+            <button class="btn btn-success" style="width: 100%; font-size: 1.1rem; padding: 12px;" onclick="checkPassword()">解鎖登入</button>
+            <p id="pwdError">密碼錯誤，請重新輸入！</p>
+        </div>
+    </div>
+
+    <!-- 載入中畫面 -->
     <div id="loadingOverlay">
         <div class="spinner"></div>
         <div id="loadingText">與雲端同步中...</div>
@@ -193,7 +221,6 @@
             <button class="close-btn" onclick="closeModal('settingsModal')">✕</button>
         </div>
         <div class="modal-content settings-form">
-            <!-- 班級全域設定 -->
             <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top: 5px;">
                 <div style="flex:1; min-width:100px;"><label style="margin-top:0;">校別：</label><input type="text" id="setting_school" placeholder="例: 光華國小"></div>
                 <div style="flex:1; min-width:100px;"><label style="margin-top:0;">班別：</label><input type="text" id="setting_class" placeholder="例: 3-1"></div>
@@ -271,8 +298,9 @@
     </div>
 
     <script>
-        // 🚨【非常重要】請將下方引號內的網址，替換成你的 Google Apps Script 網頁應用程式網址！
+        // 替換為你的 Google Apps Script 網址
         const API_URL = 'https://script.google.com/macros/s/AKfycbw3D33oEUKPzin61XiQn2_FgL0KY5ftdfw4CQ84kc3PQxDl2En-oXM25BPzhABXMfK0/exec';
+        const SYSTEM_PASSWORD = '415841582uiiojii';
 
         // --- 核心資料設定 ---
         const SUBJECTS = {
@@ -327,6 +355,32 @@
             if(type==='success') setTimeout(() => { el.style.display = 'none'; }, 2000);
         }
 
+        // --- 密碼鎖控制 ---
+        window.onload = function() {
+            if(sessionStorage.getItem('isUnlocked') === 'true') {
+                document.getElementById('loginOverlay').style.display = 'none';
+                init();
+            } else {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('passwordInput').focus();
+            }
+        };
+
+        function checkPassword() {
+            const pwd = document.getElementById('passwordInput').value;
+            if (pwd === SYSTEM_PASSWORD) {
+                document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('loginOverlay').style.display = 'none';
+                sessionStorage.setItem('isUnlocked', 'true');
+                init();
+            } else {
+                document.getElementById('pwdError').style.display = 'block';
+                document.getElementById('passwordInput').value = '';
+                document.getElementById('passwordInput').focus();
+            }
+        }
+
+        // --- 初始化應用程式 ---
         async function init() {
             const today = new Date();
             const yyyy = today.getFullYear();
@@ -413,9 +467,8 @@
                 } catch (err) {
                     setSyncStatus('❌ 同步失敗，請重整', 'error');
                 }
-            }, 1500); // 防抖動: 使用者停止操作 1.5 秒後才發送請求
+            }, 1500); 
         }
-
 
         // --- 字體縮放控制 ---
         function changeFontSize(delta) {
@@ -947,7 +1000,7 @@
             const mode = appData.currentMode;
             records[currentDate][mode][currentStudentId][taskIndex].isDone = !records[currentDate][mode][currentStudentId][taskIndex].isDone;
             renderTaskList();
-            queueSaveRecords(); // 【連線版】觸發非同步儲存
+            queueSaveRecords(); 
         }
 
         function toggleDetails(checkbox) {
@@ -1178,91 +1231,12 @@
             }
 
             closeModal('taskSelectModal');
-            queueSaveRecords(); // 【連線版】觸發非同步儲存
+            queueSaveRecords(); 
             
             if (isBulkAssign) renderViews();
             else renderTaskList();
         }
 
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
-
-        function exportStudentList(includeProgress) {
-            const curClass = appData[appData.currentMode];
-            const mode = appData.currentMode;
-            
-            if (curClass.students.length === 0) {
-                alert('目前名單為空，無法匯出！');
-                return;
-            }
-            ensureDailyRecordsExist();
-            let csvContent = '\uFEFF'; 
-            const sortedStudents = sortStudents(curClass.students);
-            const escapeCSV = (str) => `"${(str||'').replace(/"/g, '""')}"`;
-
-            if (!includeProgress) {
-                csvContent += "點名單序號,學校,班級,姓名,美語班級\n";
-                sortedStudents.forEach(stu => {
-                    const engStr = getEngClassStr(stu);
-                    csvContent += `${stu.rollNo||''},${stu.school||''},${stu.className||''},${stu.name},${engStr}\n`;
-                });
-            } else {
-                csvContent += "點名單序號,學校,班級,姓名,美語班級,狀態進度,作業與考試清單,請假紀錄,校師註記\n";
-                sortedStudents.forEach(stu => {
-                    const allTasks = records[currentDate][mode][stu.id] || [];
-                    const engStr = getEngClassStr(stu);
-                    
-                    if (allTasks.length === 0) {
-                        csvContent += `${stu.rollNo||''},${stu.school||''},${stu.className||''},${stu.name},${engStr},無紀錄,無,無,無\n`;
-                    } else {
-                        const stuTasksSchool = allTasks.filter(t => t.subject !== '校師註記' && t.subject !== '請假' && t.subject !== '評卷指派💪' && t.subject !== '額外評卷');
-                        const stuTasksExtra = allTasks.filter(t => t.subject === '評卷指派💪' || t.subject === '額外評卷');
-                        const leaveTasks = allTasks.filter(t => t.subject === '請假');
-                        const noteTasks = allTasks.filter(t => t.subject === '校師註記');
-
-                        const total1 = stuTasksSchool.length;
-                        const done1 = stuTasksSchool.filter(t => t.isDone).length;
-                        const total2 = stuTasksExtra.length;
-                        const done2 = stuTasksExtra.filter(t => t.isDone).length;
-
-                        let statusStr = '';
-                        if (total1 > 0 || total2 > 0) {
-                            let s1 = total1 > 0 ? `學校:${done1}/${total1}` : '';
-                            let s2 = total2 > 0 ? `評卷:${done2}/${total2}` : '';
-                            statusStr = [s1, s2].filter(Boolean).join(' | ');
-                        } else if (noteTasks.length > 0 || leaveTasks.length > 0) {
-                            statusStr = '僅註記/請假';
-                        }
-
-                        let taskStrs = [];
-                        stuTasksSchool.forEach(t => taskStrs.push(`${t.subject}-${t.taskName}(${t.isDone?'完成':'未完'})`));
-                        stuTasksExtra.forEach(t => {
-                            let prefix = t.subject === '評卷指派💪' ? '全班💪' : '額外💪';
-                            taskStrs.push(`${prefix}${t.taskName}(${t.isDone?'完成':'未完'})`);
-                        });
-                        let taskListStr = taskStrs.join('; ');
-                        let leaveStrs = leaveTasks.map(t => t.taskName).join('; ');
-                        let noteStrs = noteTasks.map(t => t.taskName).join('; ');
-
-                        csvContent += `${stu.rollNo||''},${stu.school||''},${stu.className||''},${stu.name},${engStr},${escapeCSV(statusStr)},${escapeCSV(taskListStr||'無')},${escapeCSV(leaveStrs||'無')},${escapeCSV(noteStrs||'無')}\n`;
-                    }
-                });
-            }
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            let prefix = mode === 'sub' ? '代課班' : '原班';
-            let typeStr = includeProgress ? '作業紀錄' : '學生名單';
-            link.download = `${prefix}_${typeStr}_${currentDate}.csv`;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        window.onload = init;
     </script>
 </body>
 </html>
