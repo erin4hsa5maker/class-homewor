@@ -1,3 +1,2140 @@
+
+Gemini
+
+即時通訊
+
+Spark
+Beta 版
+新對話
+搜尋對話
+影片
+媒體庫
+新增筆記本
+八月社會
+班級作業單程式碼功能解析
+班級作業登記簿網頁設計
+日系動漫黑白找不同遊戲
+Molly的AI植物聽診器設計
+兒童 AI 產品海報設計
+兒童AI學習夥伴設計
+AI產品設計單生成
+跨領域自然溶解課程設計
+Novel Excerpt Translation Options
+三上各科書籍目次內容整理
+更新學生名單與班級資訊
+G3A 班級名單更新與排版
+烏龜丟殼的奇幻旅程
+小女孩與動物的花園樂趣
+動漫風小女孩與皮克敏海灘玩耍
+小男孩看醫生插畫生成
+Line Art Coloring Page: Family SUV
+公園盪鞦韆的日式漫畫女孩
+家庭城市遊覽圖
+生成可愛簡約海洋世界圖
+可愛漫畫風休旅車全家出遊
+可愛風格學生講義排版優化
+整理講義植物名稱與類型
+飛機教學內容修正建議
+和 Gemini 的對話
+列出此程式碼所有功能
+
+
+
+<!DOCTYPE html>
+
+<html lang="zh-TW">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>班級作業單 (School homework sheet)</title>
+
+<style>
+
+:root {
+
+--primary: #4A90E2;
+
+--success: #2ECC71;
+
+--bg: #F5F7FA;
+
+--card-bg: #FFFFFF;
+
+--text: #333333;
+
+--border: #E4E7EB;
+
+--warning: #E74C3C;
+
+--star: #F1C40F;
+
+--note: #3b82f6; /* 註記顏色 */
+
+}
+
+* { box-sizing: border-box; font-family: "Helvetica Neue", Helvetica, "PingFang TC", "LiHei Pro", "Microsoft JhengHei", sans-serif; }
+
+body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); }
+
+
+/* Header & Top Bar */
+
+header { background: var(--primary); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 10; font-size: 1.2rem; font-weight: bold; }
+
+.controls { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; background: white; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;}
+
+.controls input[type="date"] { padding: 8px; border: 1px solid var(--border); border-radius: 5px; font-size: 1rem; }
+
+.btn { padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; background: var(--primary); color: white; }
+
+.btn-success { background: var(--success); }
+
+.btn-outline { background: white; color: var(--primary); border: 1px solid var(--primary); }
+
+
+
+/* Student Grid */
+
+.student-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding: 15px; }
+
+.student-card {
+
+background: var(--card-bg);
+
+padding: 15px 5px 10px 5px;
+
+text-align: center;
+
+border-radius: 8px;
+
+box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+
+cursor: pointer;
+
+border: 2px solid var(--border);
+
+font-size: 1.1rem;
+
+font-weight: bold;
+
+overflow: hidden;
+
+transition: all 0.2s ease;
+
+}
+
+.student-card:active { opacity: 0.7; transform: scale(0.98); }
+
+.student-name { margin-bottom: 5px; display: flex; justify-content: center; align-items: center; gap: 5px; flex-wrap: wrap;}
+
+.progress-text { font-size: 0.8rem; font-weight: normal; color: #666; }
+
+.exam-icon, .note-icon { font-size: 1.1rem; }
+
+
+
+/* Modals */
+
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; overflow-y: auto; padding-bottom: 30px;}
+
+.modal-header { background: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top:0; z-index: 101;}
+
+.modal-content { padding: 15px; }
+
+.close-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+
+
+/* Settings */
+
+.settings-form label { display: block; margin-top: 15px; font-weight: bold; }
+
+.settings-form select, .settings-form input { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid var(--border); border-radius: 5px; font-size: 1rem; }
+
+.student-input-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+
+
+
+/* Student Detail Modal */
+
+.subject-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+
+.subject-tag { padding: 8px 15px; background: #e2e8f0; border-radius: 20px; cursor: pointer; font-size: 1rem; }
+
+.subject-tag:active { background: #cbd5e1; }
+
+
+.task-list { margin-top: 20px; }
+
+.task-item { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border); }
+
+.task-info { flex-grow: 1; }
+
+.task-subject { font-size: 0.85rem; color: #64748b; font-weight: bold; }
+
+.task-exam-badge { background: var(--warning); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px; }
+
+.task-name { font-size: 1.1rem; margin-top: 3px; }
+
+.check-btn { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border); background: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; }
+
+.check-btn.checked { background: var(--success); border-color: var(--success); color: white; }
+
+
+
+/* Task Select Form Elements */
+
+.task-row { display: flex; flex-direction: column; background: #f8fafc; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); }
+
+.task-main { display: flex; align-items: center; font-size: 1.1rem; gap: 10px; }
+
+.task-main input[type="checkbox"] { width: 22px; height: 22px; }
+
+.task-details { margin-top: 10px; padding-left: 32px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+.task-details select, .task-details input[type="text"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 1rem; }
+
+.full-width-btn { width: 100%; margin-top: 20px; padding: 15px; font-size: 1.2rem; }
+
+</style>
+
+</head>
+
+<body>
+
+
+
+<header>班級作業單</header>
+
+
+
+<div class="controls">
+
+<input type="date" id="datePicker">
+
+<div>
+
+<button class="btn btn-outline" onclick="openSettings()">⚙️ 設定</button>
+
+<button class="btn btn-success" onclick="exportCSV()">匯出 CSV</button>
+
+</div>
+
+</div>
+
+
+
+<div class="student-grid" id="studentGrid"></div>
+
+
+
+<!-- 設定 Modal -->
+
+<div id="settingsModal" class="modal">
+
+<div class="modal-header">
+
+<h3>班級設定</h3>
+
+<button class="close-btn" onclick="closeModal('settingsModal')">✕</button>
+
+</div>
+
+<div class="modal-content settings-form">
+
+<label>年級設定：</label>
+
+<select id="gradeSelect">
+
+<option value="low">低年級</option>
+
+<option value="high">中高年級</option>
+
+</select>
+
+<label>學生名單 (最多30人)：</label>
+
+<div class="student-input-group" id="studentInputs"></div>
+
+
+<button class="btn btn-success full-width-btn" onclick="saveSettings()">儲存設定</button>
+
+<button class="btn btn-outline" style="color: var(--warning); border-color: var(--warning); width: 100%; margin-top: 10px; padding: 10px; font-size: 1rem;" onclick="clearStudentList()">🗑️ 清空學生名單</button>
+
+</div>
+
+</div>
+
+
+
+<!-- 學生作業 Modal -->
+
+<div id="studentDetailModal" class="modal">
+
+<div class="modal-header">
+
+<h3 id="currentStudentName">學生姓名</h3>
+
+<button class="close-btn" onclick="closeModal('studentDetailModal')">✕</button>
+
+</div>
+
+<div class="modal-content">
+
+<h4 style="margin-top:0;">新增項目 (點選類別)</h4>
+
+<div class="subject-tags" id="subjectTags"></div>
+
+<hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+<h4 style="margin-top:0;">已指派清單</h4>
+
+<div class="task-list" id="taskList"></div>
+
+</div>
+
+</div>
+
+
+
+<!-- 選擇作業項目 Modal -->
+
+<div id="taskSelectModal" class="modal">
+
+<div class="modal-header">
+
+<h3 id="currentSubjectTitle">選擇作業</h3>
+
+<button class="close-btn" onclick="closeModal('taskSelectModal')">✕</button>
+
+</div>
+
+<div class="modal-content">
+
+<div id="taskOptions"></div>
+
+<button class="btn btn-success full-width-btn" onclick="saveTaskSelection()">選擇完畢</button>
+
+</div>
+
+</div>
+
+
+
+<script>
+
+// --- 核心資料設定 ---
+
+const SUBJECTS = {
+
+low: ['國語', '數學', '考試', '請假', '校師註記'],
+
+high: ['國語', '數學', '自然', '社會', '英文', '考試', '請假', '校師註記']
+
+};
+
+
+
+const TASKS = {
+
+'國語': ['習作', '圈詞', '生字造詞', '造句', '練習本', '訂正', '練習卷', '其他'],
+
+'數學': ['習作', '數練', '練習卷', '訂正', '其他'],
+
+'自然': ['習作', '練習卷', '其他'],
+
+'社會': ['習作', '練習卷', '其他'],
+
+'英文': ['習作', '練習卷', '其他'],
+
+'請假': ['病假', '事假', '其他'],
+
+'校師註記': ['通知單', '注意事項', '個人在校表現', '其他']
+
+};
+
+
+
+let appData = { grade: 'low', students: [] };
+
+let records = {};
+
+let currentDate = '';
+
+let currentStudentId = null;
+
+let currentSubject = '';
+
+
+
+function init() {
+
+const today = new Date();
+
+const yyyy = today.getFullYear();
+
+const mm = String(today.getMonth() + 1).padStart(2, '0');
+
+const dd = String(today.getDate()).padStart(2, '0');
+
+currentDate = `${yyyy}-${mm}-${dd}`;
+
+document.getElementById('datePicker').value = currentDate;
+
+
+
+const storedData = localStorage.getItem('classManagerData');
+
+const storedRecords = localStorage.getItem('classManagerRecords');
+
+if (storedData) appData = JSON.parse(storedData);
+
+if (storedRecords) records = JSON.parse(storedRecords);
+
+
+
+document.getElementById('datePicker').addEventListener('change', (e) => {
+
+currentDate = e.target.value;
+
+renderStudentGrid();
+
+});
+
+
+
+const studentInputsDiv = document.getElementById('studentInputs');
+
+for(let i=0; i<30; i++) {
+
+const input = document.createElement('input');
+
+input.type = 'text';
+
+input.placeholder = `${i+1}號`;
+
+input.id = `stu_input_${i}`;
+
+studentInputsDiv.appendChild(input);
+
+}
+
+renderStudentGrid();
+
+}
+
+
+
+// --- 選單自動生成工具 ---
+
+function getChineseUnits() {
+
+let opts = '<option value="">選擇範圍</option>';
+
+for(let i=1; i<=12; i++) opts += `<option value="L${i}">L${i}</option>`;
+
+return opts;
+
+}
+
+function getMathUnits() {
+
+let opts = '<option value="">選擇範圍</option>';
+
+for(let i=1; i<=10; i++) opts += `<option value="L${i}">L${i}</option>`;
+
+return opts;
+
+}
+
+function getSciSocUnits() {
+
+let opts = '<option value="">選擇範圍</option>';
+
+for(let i=1; i<=5; i++) {
+
+for(let j=1; j<=4; j++) opts += `<option value="${i}-${j}">${i}-${j}</option>`;
+
+}
+
+return opts;
+
+}
+
+function getUnitHTML(subjectType) {
+
+if (subjectType === '國語') return `<select class="unit-select">${getChineseUnits()}</select>`;
+
+if (subjectType === '數學') return `<select class="unit-select">${getMathUnits()}</select>`;
+
+if (subjectType === '自然' || subjectType === '社會') return `<select class="unit-select">${getSciSocUnits()}</select>`;
+
+if (subjectType === '英文') return `<input type="text" class="unit-select custom-input" placeholder="自填範圍 (如 U1)">`;
+
+return '';
+
+}
+
+
+
+// --- UI 渲染 ---
+
+function renderStudentGrid() {
+
+const grid = document.getElementById('studentGrid');
+
+grid.innerHTML = '';
+
+
+if(appData.students.length === 0) {
+
+grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:#666;">尚未設定學生名單，請點擊上方「設定」</div>';
+
+return;
+
+}
+
+
+
+if (!records[currentDate]) records[currentDate] = {};
+
+
+
+appData.students.forEach(stu => {
+
+const allTasks = records[currentDate][stu.id] || [];
+
+
+// 區分出「校師註記」與「一般作業/考試/請假」
+
+const stuTasks = allTasks.filter(t => t.subject !== '校師註記');
+
+const noteTasks = allTasks.filter(t => t.subject === '校師註記');
+
+
+
+const total = stuTasks.length;
+
+const done = stuTasks.filter(t => t.isDone).length;
+
+let percentage = 0;
+
+let statusText = '無紀錄';
+
+let examIconHtml = '';
+
+let noteIconHtml = noteTasks.length > 0 ? '<span class="note-icon">🏫</span>' : '';
+
+
+
+if (total > 0) {
+
+percentage = (done / total) * 100;
+
+statusText = `${done} / ${total}`;
+
+
+const exams = stuTasks.filter(t => t.isExam);
+
+if (exams.length > 0) {
+
+const allExamsDone = exams.every(t => t.isDone);
+
+examIconHtml = allExamsDone ? '<span class="exam-icon">⭐</span>' : '<span class="exam-icon">🚨</span>';
+
+}
+
+} else if (noteTasks.length > 0) {
+
+// 若沒有作業，但有註記時的顯示
+
+statusText = '僅有註記';
+
+}
+
+
+const card = document.createElement('div');
+
+card.className = 'student-card';
+
+
+if (total > 0) {
+
+card.style.background = `linear-gradient(to right, #dcfce7 ${percentage}%, #ffffff ${percentage}%)`;
+
+if (percentage === 100) card.style.borderColor = 'var(--success)';
+
+}
+
+
+
+card.innerHTML = `
+
+<div class="student-name">${noteIconHtml} ${examIconHtml} ${stu.name}</div>
+
+<div class="progress-text">${statusText}</div>
+
+`;
+
+card.onclick = () => openStudentDetail(stu.id, stu.name);
+
+grid.appendChild(card);
+
+});
+
+}
+
+
+
+function openSettings() {
+
+document.getElementById('gradeSelect').value = appData.grade;
+
+for(let i=0; i<30; i++) document.getElementById(`stu_input_${i}`).value = '';
+
+appData.students.forEach((stu, index) => {
+
+if(index < 30) document.getElementById(`stu_input_${index}`).value = stu.name;
+
+});
+
+document.getElementById('settingsModal').style.display = 'block';
+
+}
+
+
+
+function saveSettings() {
+
+appData.grade = document.getElementById('gradeSelect').value;
+
+appData.students = [];
+
+for(let i=0; i<30; i++) {
+
+const name = document.getElementById(`stu_input_${i}`).value.trim();
+
+if(name) appData.students.push({ id: i, name: name });
+
+}
+
+localStorage.setItem('classManagerData', JSON.stringify(appData));
+
+closeModal('settingsModal');
+
+renderStudentGrid();
+
+}
+
+
+
+function clearStudentList() {
+
+if (confirm("警告：確定要清空學生名單嗎？\n(按確定進入第二步確認)")) {
+
+if (confirm("最後確認：名單清空後將無法復原，是否確定？\n(確認後請記得按下上方「儲存設定」才會生效)")) {
+
+for(let i=0; i<30; i++) {
+
+document.getElementById(`stu_input_${i}`).value = '';
+
+}
+
+}
+
+}
+
+}
+
+
+
+function openStudentDetail(stuId, stuName) {
+
+currentStudentId = stuId;
+
+document.getElementById('currentStudentName').innerText = `${stuName} 的紀錄本`;
+
+
+const tagsDiv = document.getElementById('subjectTags');
+
+tagsDiv.innerHTML = '';
+
+const subjects = SUBJECTS[appData.grade];
+
+subjects.forEach(sub => {
+
+const tag = document.createElement('div');
+
+tag.className = 'subject-tag';
+
+
+if (sub === '考試') {
+
+tag.innerText = `📝 ${sub}`;
+
+tag.style.background = '#fef08a';
+
+tag.style.fontWeight = 'bold';
+
+} else if (sub === '請假') {
+
+tag.innerText = `🛑 ${sub}`;
+
+tag.style.background = '#f87171';
+
+tag.style.color = 'white';
+
+tag.style.fontWeight = 'bold';
+
+} else if (sub === '校師註記') {
+
+tag.innerText = `🏫 ${sub}`;
+
+tag.style.background = 'var(--note)';
+
+tag.style.color = 'white';
+
+tag.style.fontWeight = 'bold';
+
+} else {
+
+tag.innerText = `＋ ${sub}`;
+
+}
+
+
+tag.onclick = () => openTaskSelect(sub);
+
+tagsDiv.appendChild(tag);
+
+});
+
+
+
+renderTaskList();
+
+document.getElementById('studentDetailModal').style.display = 'block';
+
+}
+
+
+
+function renderTaskList() {
+
+const listDiv = document.getElementById('taskList');
+
+listDiv.innerHTML = '';
+
+const stuTasks = records[currentDate][currentStudentId] || [];
+
+
+
+if(stuTasks.length === 0) {
+
+listDiv.innerHTML = '<p style="color:#999; text-align:center;">今日尚無指派內容</p>';
+
+return;
+
+}
+
+
+
+stuTasks.forEach((task, index) => {
+
+const item = document.createElement('div');
+
+item.className = 'task-item';
+
+
+const checkMark = task.isDone ? '☑️' : '';
+
+const btnClass = task.isDone ? 'check-btn checked' : 'check-btn';
+
+let specialBadge = '';
+
+if (task.isExam) specialBadge = '<span class="task-exam-badge">考試</span>';
+
+if (task.subject === '請假') specialBadge = '<span class="task-exam-badge" style="background:#f87171;">假單</span>';
+
+if (task.subject === '校師註記') specialBadge = '<span class="task-exam-badge" style="background:var(--note);">註記</span>';
+
+
+
+item.innerHTML = `
+
+<div class="task-info">
+
+<div class="task-subject">${task.subject} ${specialBadge}</div>
+
+<div class="task-name">${task.taskName}</div>
+
+</div>
+
+<div class="${btnClass}" onclick="toggleTask(${index})">${checkMark}</div>
+
+`;
+
+listDiv.appendChild(item);
+
+});
+
+renderStudentGrid();
+
+}
+
+
+
+function toggleTask(taskIndex) {
+
+records[currentDate][currentStudentId][taskIndex].isDone = !records[currentDate][currentStudentId][taskIndex].isDone;
+
+saveRecords();
+
+renderTaskList();
+
+}
+
+
+
+function toggleDetails(checkbox) {
+
+const details = checkbox.closest('.task-row').querySelector('.task-details');
+
+if (details) details.style.display = checkbox.checked ? 'flex' : 'none';
+
+}
+
+
+function toggleStdInput(selectEl) {
+
+const input = selectEl.nextElementSibling;
+
+if (selectEl.value === "頁數" || selectEl.value === "第_課") {
+
+input.style.display = 'block';
+
+input.focus();
+
+} else {
+
+input.style.display = 'none';
+
+input.value = '';
+
+}
+
+}
+
+
+
+function openTaskSelect(subject) {
+
+currentSubject = subject;
+
+document.getElementById('currentSubjectTitle').innerText = `選擇「${subject}」項目`;
+
+const optionsDiv = document.getElementById('taskOptions');
+
+optionsDiv.innerHTML = '';
+
+
+
+if (subject === '考試') {
+
+const examSubjects = appData.grade === 'low' ? ['國語', '數學'] : ['國語', '數學', '自然', '社會', '英文'];
+
+examSubjects.forEach(exSub => {
+
+const row = document.createElement('div');
+
+row.className = 'task-row';
+
+let extra = '';
+
+if (exSub === '國語') {
+
+extra = `<label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="exam-dictation" style="width:18px;height:18px;">聽寫</label>`;
+
+}
+
+row.innerHTML = `
+
+<div class="task-main">
+
+<input type="checkbox" value="${exSub}" class="task-checkbox exam-checkbox" onchange="toggleDetails(this)"> 考 ${exSub}
+
+</div>
+
+<div class="task-details" style="display:none;">
+
+${getUnitHTML(exSub)}
+
+${extra}
+
+</div>
+
+`;
+
+optionsDiv.appendChild(row);
+
+});
+
+} else if (subject === '請假' || subject === '校師註記') {
+
+const tasks = TASKS[subject] || [];
+
+tasks.forEach(task => {
+
+const row = document.createElement('div');
+
+row.className = 'task-row';
+
+if (task === '其他') {
+
+let placeholderText = (subject === '請假') ? '請輸入假別事由 (例如: 喪假, 公假)' : '請輸入註記內容';
+
+row.innerHTML = `
+
+<div class="task-main">
+
+<input type="checkbox" value="其他" class="task-checkbox" onchange="toggleDetails(this)"> 其他
+
+</div>
+
+<div class="task-details" style="display:none; width: 100%;">
+
+<input type="text" class="custom-input task-extra-input" placeholder="${placeholderText}" style="width: 100%;">
+
+</div>
+
+`;
+
+} else {
+
+row.innerHTML = `
+
+<div class="task-main">
+
+<input type="checkbox" value="${task}" class="task-checkbox std-task-checkbox"> ${task}
+
+</div>
+
+`;
+
+}
+
+optionsDiv.appendChild(row);
+
+});
+
+} else {
+
+const tasks = TASKS[subject] || [];
+
+tasks.forEach(task => {
+
+const row = document.createElement('div');
+
+row.className = 'task-row';
+
+
+if (task === '其他') {
+
+row.innerHTML = `
+
+<div class="task-main">
+
+<input type="checkbox" value="其他" class="task-checkbox" onchange="toggleDetails(this)"> 其他
+
+</div>
+
+<div class="task-details" style="display:none; width: 100%;">
+
+<input type="text" class="custom-input task-extra-input" placeholder="請輸入作業內容" style="width: 100%;">
+
+</div>
+
+`;
+
+} else if (task === '練習卷') {
+
+row.innerHTML = `
+
+<div class="task-main">
+
+<input type="checkbox" value="練習卷" class="task-checkbox" onchange="toggleDetails(this)"> 練習卷
+
+</div>
+
+<div class="task-details" style="display:none;">
+
+${getUnitHTML(subject)}
+
+</div>
+
+`;
+
+} else {
+
+let extraOption = (task === '訂正') ? '<option value="聯絡簿">聯絡簿</option>' : '';
+
+
+row.innerHTML = `
+
+<div class="task-main">
+
+<input type="checkbox" value="${task}" class="task-checkbox std-task-checkbox" onchange="toggleDetails(this)"> ${task}
+
+</div>
+
+<div class="task-details" style="display:none;">
+
+<select class="detail-type" onchange="toggleStdInput(this)">
+
+<option value="">無補充</option>
+
+${extraOption}
+
+<option value="頁數">頁數</option>
+
+<option value="第_課">第_課</option>
+
+</select>
+
+<input type="text" class="detail-input" placeholder="例如: 10-12" style="display:none; width: 120px;">
+
+</div>
+
+`;
+
+}
+
+optionsDiv.appendChild(row);
+
+});
+
+}
+
+document.getElementById('taskSelectModal').style.display = 'block';
+
+}
+
+
+
+function saveTaskSelection() {
+
+if (!records[currentDate][currentStudentId]) records[currentDate][currentStudentId] = [];
+
+let newTasks = [];
+
+const rows = document.querySelectorAll('.task-row');
+
+
+rows.forEach(row => {
+
+const checkbox = row.querySelector('.task-checkbox');
+
+if (checkbox && checkbox.checked) {
+
+if (currentSubject === '考試') {
+
+const exSub = checkbox.value;
+
+const unitSelect = row.querySelector('.unit-select');
+
+let unit = unitSelect ? unitSelect.value.trim() : '';
+
+
+let dictationStr = '';
+
+const dictCheckbox = row.querySelector('.exam-dictation');
+
+if (dictCheckbox && dictCheckbox.checked) dictationStr = '聽寫';
+
+
+
+let nameParts = [];
+
+if (unit) nameParts.push(unit);
+
+if (dictationStr) nameParts.push(dictationStr);
+
+
+let taskName = `${exSub}`;
+
+if (nameParts.length > 0) taskName += ` (${nameParts.join(', ')})`;
+
+
+newTasks.push({ name: taskName, isExam: true });
+
+} else {
+
+const task = checkbox.value;
+
+if (task === '其他') {
+
+const input = row.querySelector('.task-extra-input').value.trim();
+
+if (input) newTasks.push({ name: input, isExam: false });
+
+} else if (task === '練習卷') {
+
+const unitSelect = row.querySelector('.unit-select');
+
+let unit = unitSelect ? unitSelect.value.trim() : '';
+
+let name = unit ? `練習卷 (${unit})` : '練習卷';
+
+newTasks.push({ name: name, isExam: false });
+
+} else {
+
+const detailTypeEl = row.querySelector('.detail-type');
+
+const detailInputEl = row.querySelector('.detail-input');
+
+let name = task;
+
+
+if (detailTypeEl) {
+
+const detailType = detailTypeEl.value;
+
+let detailInput = '';
+
+if(detailInputEl) detailInput = detailInputEl.value.trim();
+
+
+if (detailType === '聯絡簿') {
+
+name += ` (聯絡簿)`;
+
+} else if (detailType && detailInput) {
+
+if (detailType === '頁數') name += ` (p.${detailInput})`;
+
+else name += ` (${detailType.replace('_', detailInput)})`;
+
+}
+
+}
+
+newTasks.push({ name: name, isExam: false });
+
+}
+
+}
+
+}
+
+});
+
+
+
+newTasks.forEach(t => {
+
+records[currentDate][currentStudentId].push({
+
+id: Date.now() + Math.random(),
+
+subject: currentSubject,
+
+taskName: t.name,
+
+isDone: false,
+
+isExam: t.isExam
+
+});
+
+});
+
+
+
+saveRecords();
+
+closeModal('taskSelectModal');
+
+renderTaskList();
+
+}
+
+
+
+function saveRecords() {
+
+localStorage.setItem('classManagerRecords', JSON.stringify(records));
+
+}
+
+
+
+function closeModal(modalId) {
+
+document.getElementById(modalId).style.display = 'none';
+
+}
+
+
+
+function exportCSV() {
+
+if (!records[currentDate] || appData.students.length === 0) {
+
+alert('今日尚無任何紀錄可匯出！');
+
+return;
+
+}
+
+let csvContent = '\uFEFF';
+
+csvContent += "座號,姓名,科目,類型,項目內容,完成狀態\n";
+
+
+
+appData.students.forEach(stu => {
+
+const tasks = records[currentDate][stu.id] || [];
+
+if (tasks.length === 0) {
+
+csvContent += `${stu.id + 1},${stu.name},無,無,無,無\n`;
+
+} else {
+
+tasks.forEach(task => {
+
+const status = task.isDone ? '已完成' : '未完成';
+
+let type = '作業';
+
+if (task.isExam) type = '考試';
+
+if (task.subject === '請假') type = '假單';
+
+if (task.subject === '校師註記') type = '註記';
+
+csvContent += `${stu.id + 1},${stu.name},${task.subject},${type},${task.taskName},${status}\n`;
+
+});
+
+}
+
+});
+
+
+
+const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+const link = document.createElement("a");
+
+link.href = URL.createObjectURL(blob);
+
+link.download = `班級紀錄_${currentDate}.csv`;
+
+link.style.display = 'none';
+
+document.body.appendChild(link);
+
+link.click();
+
+document.body.removeChild(link);
+
+}
+
+
+
+window.onload = init;
+
+</script>
+
+</body>
+
+</html>
+
+這段程式碼是一個完整且輕量化的「班級作業與紀錄管理系統」，完全透過前端網頁技術（HTML, CSS, JavaScript）實作，並具備資料儲存與匯出功能。
+
+以下為此程式碼的所有功能解析，已依據模組分類：
+
+1. 核心系統與資料管理
+本地資料儲存 (Local Storage)： 系統會自動將「班級設定（包含年級、學生名單）」與「每日作業紀錄」儲存於瀏覽器的 Local Storage 中，重新整理或關閉網頁後資料不會遺失。
+
+日期切換功能： 頂部設有日期選擇器（Date Picker），預設為當天。教師可自由切換日期，查看或編輯過去與未來的作業紀錄，資料會依日期獨立儲存。
+
+2. 班級與學生設定 (⚙️ 設定)
+年級科目連動： 可選擇「低年級」或「中高年級」。系統會根據年級自動調整可選科目：
+
+低年級： 國語、數學、考試、請假、校師註記。
+
+中高年級： 國語、數學、自然、社會、英文、考試、請假、校師註記。
+
+學生名單建立： 支援最多輸入 30 位學生的姓名，按座號順序排列。
+
+防呆清空機制： 提供「🗑️ 清空學生名單」按鈕，並設有兩段式警告確認彈出視窗（Confirm），防止教師誤觸導致名單與紀錄遺失。
+
+3. 主控台與學生總覽 (Dashboard)
+動態進度條卡片： 每個學生的卡片背景會根據「已完成作業/總作業」的比例，由左至右動態填滿綠色進度條（100% 完成時邊框會變為綠色）。
+
+數據狀態顯示： 卡片下方會顯示目前完成進度（例如：3 / 5），若未指派作業則顯示「無紀錄」，若僅有註記則顯示「僅有註記」。
+
+狀態圖示提示 (Icons)：
+
+🏫：代表該學生當日有「校師註記」。
+
+🚨：代表該學生當日有「考試」且尚未完成/未考完。
+
+⭐：代表該學生當日的「考試」已全數完成。
+
+4. 學生個人紀錄管理 (點擊學生卡片)
+分類標籤快速指派： 依照設定的年級，提供對應的科目按鈕、📝考試、🛑請假、🏫校師註記等快捷標籤。
+
+任務清單與狀態切換： 顯示該名學生當日所有被指派的項目。點擊右側的圓圈可切換「已完成 (☑️ 綠底)」與「未完成」狀態。
+
+視覺化標籤 (Badges)： 清單中會為特殊項目加上醒目標籤（黃底「考試」、紅底「假單」、藍底「註記」），方便一眼辨識。
+
+5. 作業與任務詳細指派 (選擇作業 Modal)
+科目專屬預設選項： 點選不同科目會有不同的常見作業類型（如：國語有圈詞/造句；數學有數練等）。
+
+動態補充欄位：
+
+勾選特定作業後，可進一步選擇補充資訊（例如：選擇「頁數」或「第_課」會展開對應的輸入框，或標記「聯絡簿」）。
+
+選擇「其他」時，會自動展開純文字輸入框供自訂內容。
+
+考試專屬設定： 選擇「考試」時，可勾選要考的科目，系統會自動帶出對應的範圍選單（例如國語 L1~L12、自然 1-1~5-4，英文為自填），國語還額外提供「聽寫」的勾選功能。
+
+請假與註記功能： 可登記病假、事假等出缺席狀況，或輸入個人在校表現、通知單等教師備註（這些項目不列入作業完成度的比例計算）。
+
+6. 資料匯出 (匯出 CSV)
+一鍵產出報表： 點擊「匯出 CSV」會將當下選擇日期的所有班級紀錄打包下載。
+
+格式化欄位： CSV 檔案包含「座號、姓名、科目、類型 (作業/考試/假單/註記)、項目內容、完成狀態」。
+
+解決中文亂碼： 程式碼內建寫入了 \uFEFF (BOM)，確保匯出的 CSV 在 Excel 中開啟時中文不會變為亂碼。
+
+校師註記新增考卷簽名選項 並且修改為
+
+1適用於平板 電腦 手機
+
+2選單成立時直接列出即時表格
+
+3學生名字輸入增加：學校（OO國小僅需輸入OO）以及班級名稱（ex:3-1,5-2...) 另新增學生美語班級 （資優 及手動輸入）和 點名單序號
+
+4即時表格增加 依照XX排序 （學校+班級,美語班級,點名單序號）
+
+你的 class_manager_updated.html 檔案已經準備好了：
+
+「HTML」圖示
+class_manager_updated
+ HTML 
+開啟
+我已經依照你的需求，將系統程式碼進行了大幅升級與修改。你可以直接下載上述檔案，或在瀏覽器中開啟它。以下是本次更新的功能亮點解析：
+
+1. 校師註記新增「考卷簽名」
+在學生詳細紀錄的「🏫 校師註記」彈出視窗中，已經將「考卷簽名」加入預設選項清單，點選即可快速指派。
+
+2. 選單成立即列出「即時表格」（支援全裝置）
+首頁預設視圖更改： 系統載入或選擇日期後，主畫面將直接列出即時表格（Table View），不再預設顯示卡片。
+
+RWD 響應式設計： 表格外層加入了 overflow-x: auto，無論是平板、電腦還是手機，遇到寬度不夠時都能順滑左右滑動，不跑版。
+
+視圖切換保留： 頂部按鈕區新增了「切換 表格/卡片」按鈕，如果老師想在手機上使用原本的「大按鈕卡片模式」，依然可以一鍵隨時切換。
+
+3. 學生詳細欄位擴充與美語班級設定
+設定彈出視窗全面升級： 學生輸入區塊改為「橫列式表單」，每位學生現在擁有專屬的資料列。
+
+新增欄位：
+
+點名單序號： 數字輸入框。
+
+學校與班級： 學校（例如：光華）、班級（例如：3-1）。
+
+美語班級： 提供下拉式選單，可選擇預設的「資優」，若選擇「手動輸入」，則會動態展開文字框讓老師自由填寫。
+
+注意：舊有的匯出 CSV 功能也已經同步更新，匯出的報表將包含上述所有新欄位。
+
+4. 即時表格支援「點擊標題排序」
+在即時表格的表頭，針對新增的資料加入了動態排序功能（附有 ↕ 圖示提示）：
+
+序號 ↕： 依照點名單序號做數字大小排序。
+
+學校-班級 ↕： 依照 學校 + 班級名稱進行字母/筆畫排序。
+
+美語班級 ↕： 依照美語班級名稱排序。
+
+點擊同一標題可以切換「升冪 (↓)」與「降冪 (↑)」排序，表格會瞬間重新渲染。
+
+增加 每個學生不論即時表格 或是輸出 一個學生都只占一橫排
+
+我已經依照你的需求，將「即時表格」與「匯出 CSV」的格式修改為 「一個學生不論指派多少項目，都只會佔據同一橫排（同一列）」。
+
+你的 class_manager_updated_v2.html 檔案已更新完畢：
+
+「HTML」圖示
+class_manager_updated_v2
+ HTML 
+開啟
+本次更新的改動細節：
+1. 即時表格（Table View）改版：一目了然的總覽
+
+新增「詳細指派內容」欄位： 表格中原本只顯示 3/5完成 的狀態，現在額外加入了一個新欄位。該欄位會把指派給學生的所有項目（作業、考試、假單、註記）透過彩色小標籤（Badge）全部陳列在同一橫列中。
+
+☑️ 綠色標籤：已完成的作業或考試
+
+☐ 灰色標籤：未完成的作業或考試
+
+🛑 紅色標籤：請假紀錄
+
+🏫 藍色標籤：校師註記（含考卷簽名）
+
+介面優化： 表格寬度有稍微擴充以容納更多資訊，如果在手機或平板上瀏覽，只需在表格區域左右滑動即可檢視完整內容，版面依然保持整潔。
+
+2. CSV 匯出邏輯大改版：單一學生單一列
+
+原本的邏輯是「一項作業產生一列（Row）」，現在已全面改寫為「一位學生只有一列」。
+
+CSV 欄位重新規劃為：
+點名單序號、學校、班級、姓名、美語班級、狀態進度、作業與考試清單、請假紀錄、校師註記
+
+資料壓縮呈現： 如果一位學生有多項作業，系統會用分號（;）將它們串接在一起。
+
+例如，CSV 內的「作業與考試清單」欄位會顯示為： 國語-習作(完成); 數學-練習卷(未完)
+
+「校師註記」欄位會顯示為： 考卷簽名; 個人在校表現
+
+這樣的設計讓老師在匯出 Excel 報表後，一眼就能橫向看清每位學生的今日全貌，無需再手動合併儲存格。
+
+設定畫面增加 校別 班別 及老師名字 另設定中新增 輸出學生列表（包含作業進度或僅名單） 及主畫面增加代課按鈕，點入後有手動輸入或是載入學生列表可選擇，輸入完畢後主畫面增加原班／代課班切換鈕，兩班學生務必完全分開，功能須相同
+
+你的 class_manager_updated_v3.html 檔案已經製作完成：
+
+「HTML」圖示
+class_manager_updated_v3
+ HTML 
+開啟
+這次的升級涵蓋了多個重點功能，並且為未來多班級切換打下了堅實的基礎：
+
+1. 班級全域設定：校別、班別與老師名字
+在「⚙️ 設定」畫面的最上方，新增了校別、班別、老師名字的專屬輸入框。
+
+這些資訊會自動同步到系統最頂端的主標題（例如顯示為 光華國小 3-1 班級作業單 - 王大明老師），讓版面更具專屬感。
+
+2. 輸出學生列表：支援僅名單與含進度
+在「⚙️ 設定」選單的下方新增了「輸出學生列表」專區。
+
+📄 僅名單：匯出純淨的學生名冊（包含序號、學校、班級、姓名、美語班級），不會帶有任何當日的作業指派與完成狀態，非常適合用來做為一般點名表。
+
+📊 含作業進度：等同於主畫面右上角的匯出功能，會將當下日期的所有作業進度、請假與註記一併打包匯出。
+
+3. 全新的「代課功能」與「原班/代課班 雙開系統」
+➕ 代課按鈕：在主畫面日期旁新增了代課按鈕。點擊後會進入專屬的「代課班級」初始化設定。
+
+批次匯入名單：在代課初始化視窗中，老師可以直接貼上一整串的名字（每行一個），系統會自動將他們依序號載入位置，省去一格一格手動輸入的麻煩。如果有需要調整，也可以點擊「手動逐一設定」。
+
+🔄 雙班切換與隔離：
+
+一旦建立了代課班，主畫面就會出現「🔄 切換至：代課班」與「🔄 切換至：原班」的切換鈕。
+
+資料絕對隔離：這兩個班級的學生名單、各別指派的作業紀錄、全域設定（校名、老師名等）完全分開且互不干擾。
+
+視覺防呆提示：當切換至「代課班」時，系統最上方的橫幅、所有彈出視窗的標題列都會變成 紫色，並且標題旁會出現顯眼的「代課中」標籤，避免老師在指派作業時切錯班級。
+
+結束代課：如果代課任務結束，可以在代課班的「⚙️ 設定」中點擊下方的「🛑 結束代課」，這會清空代課班的名單與介面（但過去日期的代課指派紀錄依然會保留在背景資料中），並自動切換回原班。
+
+增加 主選單內 評卷指派💪 按鈕，點擊後選項 評量 考卷 心智圖 其他 ，除心智圖，評量考卷亦有課別／章節別選項（同現有科目） 選完後學生作業新增評量巷，學生作業進度按鈕切上下兩半，上半維持學校作業進度 下半為評卷指派💪的評量考卷進度
+
+你的 class_manager_updated_v4.html 檔案已經更新完成：
+
+「HTML」圖示
+class_manager_updated_v4
+ HTML 
+開啟
+這次的升級著重於「評卷與測驗」的管理，幫助你將學校正規作業與額外的評量測驗有效分開。以下是本次新增的功能重點：
+
+1. 新增「評卷指派💪」專屬項目
+在點擊學生出現的「新增項目」區塊中，加入了一個醒目的 評卷指派💪 按鈕（藍紫色設計）。
+
+點入後提供四種選項：評量、考卷、心智圖、其他。
+
+動態章節選擇： 當勾選「評量」或「考卷」時，系統會自動展開下拉選單，讓老師先選擇「科目（國/數/自/社/英）」，接著再選擇對應的「範圍（如 L1, L2, 1-1）」，邏輯完全貼合現有的科目範圍設定。
+
+勾選「心智圖」與「其他」時，則會展開文字框供老師自由輸入範圍或主題。
+
+2. 首創「雙截式進度條」介面 (Card View)
+卡片一分為二： 為了將學校作業與測驗評量明確分開，現在每個學生的卡片背景會被切成上下兩半：
+
+上半截（綠色）： 代表學校正規作業進度。
+
+下半截（藍色）： 代表 評卷指派💪（評量、考卷、心智圖）的進度。
+
+數據分流顯示： 卡片下方原有的進度文字，現在會顯示為 學校: X/Y | 評卷: A/B，讓老師一眼就能掌握兩邊各自的完成狀況。
+
+3. 表格與報表 (Table View & CSV) 的深度整合
+即時表格： 在表格模式的「狀態」欄位中，會分兩行顯示「學校」與「評卷」的數字進度（評卷採用專屬的紫色強調顯示）。
+
+專屬 Badge 標籤： 「詳細指派內容」中，評卷指派的項目會以專屬的紫色線條與底色呈現，並帶有 💪 圖示（例如：☑️ 💪評量-數學(L1)），以便在眾多作業中快速辨識。
+
+CSV 匯出分流： 匯出含作業進度的 Excel 報表時，「狀態進度」欄位也會自動分流輸出（例如：學校:3/3 | 評卷:1/2），且作業清單會清楚標示出哪些項目屬於額外評卷。
+
+評卷指派💪放在主畫面 全班學生一致 故全體統一 不需各自學生選擇。但學生個別選項內原評卷指派改成額外評卷 一樣使用在評卷指派進度
+
+你的 class_manager_updated_v5.html 檔案已經更新完成：
+
+「HTML」圖示
+class_manager_updated_v5
+ HTML 
+開啟
+我已經將「評卷指派💪」的邏輯依照你的要求重新調整，分拆成全班統一與個別指定兩種模式，但兩者的進度皆統一合併在下半部顯示。以下是本次的更新亮點：
+
+1. 全班統一評卷指派（主畫面按鈕）
+介面調整：在主畫面（無論是原班或代課班）的頂端按鈕列，新增了一顆醒目的紫色按鈕 「💪 全班評卷指派」。
+
+一鍵指派：點擊後會彈出專屬視窗，老師可以勾選所需的測驗項目（評量、考卷、心智圖、其他）。按下確定後，系統會自動將該項目指派給名單內的「每一位學生」。
+
+操作防呆：若班級名單為空，點擊時會自動跳出提示，避免程式出錯。
+
+2. 個別學生畫面變更為「額外評卷」
+名稱更換：點擊單一學生進入個人紀錄本時，原本的「評卷指派💪」按鈕已更名為 「💪 額外評卷」。
+
+用途區分：這裡的功能設計給「少數學生需要額外補考、或被指派特定評量」時使用，操作邏輯與全班指派完全相同。
+
+3. 進度與報表統整 (雙截式進度條)
+顯示合併：不論是透過「全班評卷指派」還是「個別額外評卷」加入的項目，系統在計算進度時，都會統整於卡片與表格的「下半部（紫色區域）」。
+
+清單標記辨識：在學生的詳細清單與輸出的 CSV 報表中，系統會明確標示出該項目是來自全班還是個別指派：
+
+全班指派的項目會標記為：💪全班評卷 (CSV 中顯示為 全班💪評量...)
+
+個別指派的項目會標記為：💪個別評卷 (CSV 中顯示為 額外💪評量...)
+
+增加字體放大 縮小 可疊加 最大不大於28 最小不小於11 另增加國語次選項：作文（手寫欄），學習單（課別），預習單（課別） 其他：選項新增 週記 閱讀心得
+
+你的 class_manager_updated_v6.html 檔案已經更新完成：
+
+「HTML」圖示
+class_manager_updated_v6
+ HTML 
+開啟
+我已經將你的所有新需求整合進系統中，以下是本次更新的功能與使用說明：
+
+1. 畫面字體縮放功能 (A+ / A-)
+按鈕位置： 在主畫面上方控制列的左側加入了 「A+」 與 「A-」 按鈕。
+
+動態縮放： 系統全站採用響應式比例 (rem) 重寫，點擊後會連同表格、卡片、彈出視窗、按鈕等一起「等比例縮放」，保證在不同尺寸螢幕（尤其是平板或投影幕）上都易於閱讀。
+
+字體限制： 設定最大字體為 28px，最小不小於 11px。每次調整後，系統會自動記憶（存入 localStorage），下次開啟時不需重新調整。
+
+2. 「國語」科目新增三個實用子選項
+在任一學生的「📝 國語」選項中，補齊了三個全新的作業指派：
+
+作文： 點選後會展開專屬純文字輸入框，提示「請輸入作文題目/手寫內容」（會顯示為 作文 (題目)）。
+
+學習單： 點選後會展開與其他練習卷相同的「範圍選單（L1~L12）」，方便直接指派第幾課的學習單。
+
+預習單： 點選後同上，展開範圍選單供老師選擇課別。
+
+3. 新增「其他」科目分類（週記、閱讀心得）
+獨立的「其他」科目： 在學生的各科目按鈕清單中（國語、數學...），新增了一個實用的分類標籤：「＋ 其他」。
+
+專屬作業： 裡面包含了你要求的 週記 與 閱讀心得。勾選後會展開文字框，讓老師輸入選填的主題或範圍（例如：閱讀心得 (三隻小豬)）。這個類別非常適合用在指派非特定學科的週末作業。
+
+4. 再次優化介面流暢度
+為了適應被放大的字體，我連帶優化了「卡片佈局」以及「核取方塊」與「完成打勾綠色圓圈」的尺寸，確保即便你將字體放到最大的 28px，畫面也不會跑版、按鈕依舊好點擊。
+
+卡片佈局的作用是甚麼
+
+在這套「班級作業單」系統中，卡片佈局（Card Layout） 主要的作用是提供一個「高度視覺化、適合快速掃視與觸控操作」的介面。
+
+與充滿細節的「表格模式」相比，卡片佈局在您的系統中扮演著以下幾個關鍵角色：
+
+1. 視覺化的進度追蹤（進度條整合）
+卡片不僅僅是顯示名字的方塊，它本身就是一個動態進度條。
+
+透過背景顏色的填滿程度，老師不需要去讀數字（例如 3/5），大腦只要看到「綠色/紫色填滿了多少」，就能在 1 秒內直覺判斷出這位學生的完成度。
+
+我們剛為您加入的「雙截式進度條」，更是讓一張卡片就能同時呈現「學校作業（上半部綠色）」與「額外評卷（下半部紫色）」兩種截然不同的進度。
+
+2. 資訊減壓與聚焦（Information Focus）
+表格模式會列出所有的作業明細，當資料一多，畫面會顯得擁擠。
+
+卡片佈局刻意隱藏了細節，只留下最核心的資訊：學生姓名、進度比例數字、以及圖示。
+
+這種設計能降低老師在視覺上的「認知負擔」，讓您專注於尋找「誰還沒完成」，點擊進去後再查看詳細清單。
+
+3. 快速辨識特殊狀態（圖示化警示）
+卡片上設計了許多直覺的 Emoji 圖示，這在卡片佈局中效果特別好：
+
+看到 🚨 就知道他有考試還沒考完。
+
+看到 ⭐ 就知道他考試全數過關。
+
+看到 🏫 就能立刻想起這位學生今天有特殊的「老師註記」或「請假」。
+這些符號在獨立的卡片區塊中，比在密集的表格文字中更容易被大腦捕捉。
+
+4. 完美適應觸控裝置（平板/手機操作）
+您提到這套系統要適用於平板和手機。
+
+卡片提供了較大的點擊範圍（Hitbox）。老師在課堂上拿著平板走動巡視時，用手指點擊一張大卡片，絕對比用手指去精準點擊表格裡的一行小字或一顆小按鈕來得容易且不易誤觸。
+
+總結來說的應用情境：
+
+表格模式：適合您坐在辦公桌前，要「仔細核對作業明細」、準備印出報表、或一筆一筆檢查細項時使用。
+
+卡片模式（卡片佈局）：適合您在講台上、或拿著平板在教室巡堂時，用來「一眼掌握全班動態」與「快速點選登記」時使用。
+
+如果我編輯過班級名單 再把那個網頁複製傳到另一台裝置 名單會保留嗎
+
+不會保留喔！
+
+當你把這個網頁檔案（.html）複製並傳到另一台裝置打開時，裡面會是全新的預設狀態。  
+HTML
+
+這是因為目前的系統架構運作方式如下：
+
+檔案只是程式空殼： 這個 HTML 檔案本身只包含了「系統的外觀與功能（程式碼）」，裡面並沒有直接寫入你輸入的學生資料。  
+HTML
+
+資料存在瀏覽器內部： 為了讓系統輕量化且不需要依賴網路伺服器或資料庫就能運作，你的班級名單、全域設定與每日的作業紀錄，都是儲存在「你當下操作的那台裝置的瀏覽器專屬空間內」（這項網頁技術稱為 Local Storage）。  
+HTML
+
+裝置與瀏覽器互相獨立： 當你換了一台電腦或手機，甚至是同一台電腦但換了不同的瀏覽器（例如原本用 Chrome 設定，後來改用 Edge 開啟），新的環境去讀取 Local Storage 時會發現裡面是空的，系統就會呈現尚未設定的初始畫面。  
+HTML
+
+目前的解決方式：
+這套系統目前是「單機版」的設計。你必須在每一台會使用到的裝置（或瀏覽器）上，都各自手動設定一次學生名單與班級資訊。一旦在該裝置設定完成，只要不清除瀏覽器的網頁資料，該裝置就會一直記住這份名單。
+
+如果你會頻繁地在不同裝置間切換，希望名單可以輕鬆轉移，我可以幫你寫一個「匯出設定檔 / 匯入設定檔」的功能，讓你在一台機器設定好後，能直接把設定檔丟給另一台機器讀取。你需要加上這個機制嗎？
+
+好 幫我增加匯出匯入設定黨
+
+你的 class_manager_updated_v7.html 檔案已經更新完成：
+
+「HTML」圖示
+class_manager_updated_v7
+ HTML 
+開啟
+我已經為你增加了「跨裝置轉移（備份與還原）」的功能，這樣一來，不論你換電腦、換手機，或是想要在家裡與學校的電腦之間同步資料，都可以輕鬆完成。
+
+功能使用說明：跨裝置轉移 (備份與還原)
+位置：點擊主畫面右上角的「⚙️ 設定」，在設定視窗的最下方會看到一個黃色背景的全新區塊：「跨裝置轉移 (備份與還原)」。
+
+⬇️ 匯出備份檔：
+
+在已經設定好名單（裝置 A）上點擊此按鈕，系統會下載一個副檔名為 .json 的檔案（例如：班級作業單_系統備份_2026-08-30.json）。
+
+這個檔案包含了： 你的原班名單、代課班名單、全域設定，以及過去每一天的所有指派紀錄。它是完整的系統快照。
+
+你可以透過 Line、Email 或隨身碟把這個檔案傳到另一台裝置（裝置 B）。
+
+⬆️ 匯入備份檔：
+
+在新的裝置（裝置 B）上打開這個系統，進入「⚙️ 設定」，點擊「⬆️ 匯入備份檔」並選擇剛剛傳過來的 .json 檔案。
+
+系統會跳出警告（因為匯入會覆蓋掉裝置 B 上原有的舊資料），按下「確定」後，系統會瞬間載入你在裝置 A 上的所有名單與紀錄。
+
+完成後系統會自動重新整理，你就可以無縫接軌繼續使用了！
+
+有沒有可能做到線上同步呢
+
+要做到真正的「線上同步」，技術上是絕對可行的。目前的系統因為是純前端網頁，所有的名單和進度都存在您當下使用裝置的「本地儲存空間（Local Storage）」中，所以裝置之間無法互通。
+
+要讓不同的電腦、平板或手機都能看到同一份最新的資料，我們需要引入「雲端資料庫」來取代現在的本地儲存。以下是兩種最適合您目前 HTML 架構的升級方案：
+
+方法一：使用 Firebase 雲端資料庫 (BaaS)
+這是目前前端開發最常使用的無伺服器（Serverless）解決方案，也是最推薦的做法。
+
+運作原理： 申請一個免費的 Google Firebase 專案，將 Firebase 的程式庫直接引入目前的 HTML 檔案中。
+
+優點： 支援即時同步（Real-time Sync）。如果您的平板和電腦同時打開這個網頁，在平板上打勾一個作業，電腦的畫面會瞬間同步打勾。其免費額度非常龐大，對處理一兩個班級的文字資料來說絕對夠用。
+
+缺點： 需要您註冊 Firebase 開發者專案，並將專屬的金鑰（API Key）貼到程式碼中。
+
+方法二：使用 Google 試算表作為資料庫 (Google Apps Script)
+這是一個完全免費且資料可視化程度極高的方案。
+
+運作原理： 在您的 Google 雲端硬碟建立一份試算表，撰寫一段 Google Apps Script (GAS) 程式碼，讓網頁可以透過網路將作業進度寫入試算表，或從試算表讀取最新資料。
+
+優點： 零成本、不需維護伺服器，且所有的底層資料您都可以隨時打開 Google 試算表進行手動查看或備份，非常有安全感。
+
+缺點： 讀取與寫入的速度會受到 Google API 限制（每次操作約需 1~2 秒），無法做到 Firebase 那種毫秒級的即時連動。
+
+升級線上版需要重寫程式嗎？
+視覺介面與核心邏輯完全不需要重寫。我們只需要將程式碼中負責儲存的 localStorage.setItem 與負責讀取的 localStorage.getItem，抽換成向上述雲端服務發送與接收資料的指令即可。
+
+如果您想將這套系統升級為線上同步版，您會比較傾向嘗試擁有即時同步體驗的 Firebase 方案，還是資料好管理的 Google 試算表方案呢？
+
+先幫我把這個單機版本作為獨立的備份 並且給我詳細的說明書
+
+沒問題！這是一個非常好的做法。目前的 class_manager_updated_v7.html 就是你最完整的「單機最終穩定版」。只要把這個 HTML 檔案好好保存在你的電腦或隨身碟裡，即使沒有網路，你隨時點開都能立刻使用。  
+HTML
+
+為了讓你未來或接手的老師能快速上手，我為這個單機版本撰寫了一份詳細的操作說明書。建議你可以將這份說明儲存起來參考。
+
+📝 班級作業單管理系統 (單機版) - 使用說明書
+這是一套專為國小教師設計的輕量化作業管理工具。無需安裝、無需網路，只要使用瀏覽器（Chrome、Edge、Safari 等）打開 HTML 檔案即可運作。資料會自動保存在你當下使用的瀏覽器中。
+
+壹、 基礎設定與建立名單
+第一次使用時，請先完成班級與學生資料的建立。
+
+進入設定： 點擊畫面上方的「⚙️ 設定」按鈕。  
+HTML
+
+班級全域設定： 填寫「校別」、「班別」與「老師名字」。這些資訊會顯示在系統最上方的標題列中，方便辨識。  
+HTML
++ 1
+
+選擇年級： 下拉選擇「低年級」或「中高年級」。這會影響指派作業時出現的科目（中高年級會多出自然、社會、英文）。  
+HTML
++ 1
+
+輸入學生名單：
+
+系統提供 30 個名額。  
+HTML
+
+依序輸入學生的「序號」、「學校」、「班級」與「姓名」。  
+HTML
+
+美語班級： 可選擇預設的「資優」，或選擇「手動輸入」來填寫其他級別名稱。  
+HTML
+
+儲存： 完成後點擊最下方的「儲存設定」，系統會自動回到主畫面並生成學生卡片或表格。  
+HTML
+
+貳、 作業指派與進度管理
+系統分為「卡片模式」與「表格模式」，點擊上方的「切換」按鈕可隨時變換視圖。  
+HTML
+
+1. 個別指派與狀態更新
+進入個人紀錄本： 在主畫面點擊任何一位學生的卡片或表格列，即可開啟該學生的紀錄本。  
+HTML
+
+新增項目： 點選上方的科目標籤（如：國語、數學、考試等）。系統會根據科目彈出對應的常見作業類型（如：習作、練習卷、作文、學習單等）。  
+HTML
++ 1
+
+動態範圍選擇： 勾選作業後，可進一步利用下拉選單選擇課別（L1~L12）或輸入特定頁數。  
+HTML
+
+完成打勾： 在「已指派清單」中，點擊項目右側的 ⭕ 圓圈，即可將狀態切換為已完成（☑️ 綠色）。  
+HTML
+
+2. 全班統一評卷指派 💪
+遇到全班性的測驗或評量時，可使用此功能一鍵指派。
+
+點擊主畫面上方的紫底按鈕「💪 全班評卷指派」。  
+HTML
+
+勾選項目（評量、考卷、心智圖等）並設定範圍，點擊「確認全班指派」。系統會自動把這些項目塞進全班所有學生的個人紀錄本中。  
+HTML
++ 1
+
+3. 進度查看 (雙截式進度條)
+在卡片模式中，學生的卡片背景會根據完成度動態填滿：
+
+上半截（綠色）： 代表學校正規作業的完成進度。  
+HTML
+
+下半截（藍紫色）： 代表「評卷指派 / 額外評卷」的測驗完成進度。  
+HTML
+
+狀態圖示： 卡片上若出現 🚨 代表有考試未完成，⭐ 代表考試皆已完成，🏫 代表該生當日有請假或特別的老師註記。  
+HTML
+
+參、 進階功能操作
+1. 字體大小縮放 (A+ / A-)
+若使用平板或投影幕時覺得字體太小，可點擊畫面上方的「A+」放大全站字體（最大至 28），或點擊「A-」縮小。系統會自動記憶你最後設定的字體大小。  
+HTML
+
+2. 原班與代課班雙系統 🔄
+若你需要短暫代課，系統支援開啟第二個獨立的班級空間。
+
+點擊畫面上方的「➕ 代課」按鈕。  
+HTML
+
+可將代課班的學生名單（純文字，一行一個名字）直接貼入文字框中，進行「批次載入」。  
+HTML
+
+建立後，畫面上方會出現「🔄 切換至：代課班 / 原班」的按鈕。  
+HTML
+
+注意： 代課班的標題與視窗皆會呈現紫色以防混淆，其學生名單與作業紀錄與原班級完全隔離。代課結束後，可至設定中點擊「🛑 結束代課」清空代課介面。  
+HTML
++ 1
+
+肆、 報表輸出與資料轉移
+這部分位於「⚙️ 設定」視窗的下方區塊。
+
+1. 輸出學生報表 (Excel / CSV)
+📄 僅名單： 匯出乾淨的學生名冊（包含序號、學校、班級、姓名、美語班級），方便列印作為實體點名表。  
+HTML
+
+📊 含作業進度： 匯出當日所有的作業清單、完成狀態與請假註記。系統會自動將學校作業與評卷測驗分流顯示，方便用 Excel 管理成績。  
+HTML
+
+2. 跨裝置轉移 (備份與還原) ⚠️ 重要
+因為這是單機版，資料只存在「當前的瀏覽器」中。如果你要換電腦、換手機，或是怕清除瀏覽器紀錄導致資料遺失，請務必使用此功能！
+
+備份： 點擊「⬇️ 匯出備份檔」，系統會下載一個 .json 檔案。這包含了你所有的學生名單與過往每一天的歷史紀錄。  
+HTML
++ 1
+
+還原： 在另一台裝置上打開系統，點擊「⬆️ 匯入備份檔」，選擇剛剛的 .json 檔案，所有資料就會瞬間無縫接軌轉移過去！  
+HTML
+
+使用叮嚀： 只要不手動清除瀏覽器的「網站暫存資料（Cache / Local Storage）」，你的紀錄就會一直存在。強烈建議每週固定「匯出備份檔」一次，存放在隨身碟或雲端硬碟中，確保資料萬無一失。  
+HTML
+
+接下來請告訴我如何使用Google 試算表方案升級為線上同步版
+
+將現有的系統升級為「Google 試算表連線版」，核心概念是不改變原有的視覺介面，而是將原本儲存在瀏覽器本機的資料，透過 API 傳送並記錄到雲端的儲存格中。
+
+以下是完成這項升級的完整執行架構：
+
+一、 準備 Google 試算表 (資料庫)
+在 Google 雲端硬碟中新建一份空白的試算表。
+
+將左下角預設的「工作表1」雙擊重新命名為「Database」。
+
+這份試算表的功能如同一個保險箱，A 欄未來會存放資料標籤（如 appData），B 欄會存放系統打包好的文字記錄（JSON 格式）。
+
+二、 部署 Apps Script (後端 API)
+在試算表頂部選單點選「擴充功能」進入「Apps Script」編輯器。
+
+清空預設畫面，你需要在此撰寫包含 doGet(e) 與 doPost(e) 的腳本，讓它能接收網頁發送過來的讀取與存檔請求。
+
+點擊右上角的「部署」並選擇「新增部署作業」，部署類型設定為「網頁應用程式」。
+
+權限設定是連線成功的關鍵：「執行身分」設定為「我」，「誰可以存取」必須設定為「所有人」。
+
+通過安全授權後，系統會提供一段專屬的「網頁應用程式網址 (Web App URL)」，請務必複製保留。
+
+三、 修改前端 HTML 程式碼
+在原本系統的 JavaScript 區塊最上方，宣告一個常數 const API_URL = '貼上你的網頁應用程式網址';。
+
+尋找程式碼中的 init() 函數，將讀取 localStorage 的語法，改寫為使用 fetch(API_URL) 向試算表請求最新資料。
+
+尋找 saveAppData() 與 saveRecords() 函數，將儲存指令改寫為 fetch 的 POST 請求，將資料打包上傳。
+
+四、 加入非同步載入機制
+雲端存取會受網路速度影響，每次讀取或存檔大約需要 1 至 2 秒的時間。
+
+你需要在 HTML 與 CSS 中新增一個「載入中 (Loading...)」的半透明遮罩動畫。
+
+必須確保資料成功寫入試算表前，暫時鎖定畫面禁止點擊，以避免重複送出產生覆蓋錯誤。
+
+你需要我為你直接撰寫對應的 Apps Script 腳本碼，以及幫你將目前這個 HTML 檔案中負責存取的程式碼替換成雲端版本嗎？
+
+直接幫我撰寫並且告訴我如何貼上
+
+已成功更新部署作業。
+
+1 版 (2026年8月30日下午4:12)
+
+部署作業 ID
+
+AKfycbyRRrotj7EuTtG1CGdA04XsNBMZRoL-5OyJs07Fwawondu1pDR9dgqRc703IEKq3Br6
+
+網頁應用程式
+
+網址
+
+https://script.google.com/macros/s/AKfycbyRRrotj7EuTtG1CGdA04XsNBMZRoL-5OyJs07Fwawondu1pDR9dgqRc703IEKq3Br6/exec
+
+你的 class_manager_online.html 雲端連線版檔案已經為你準備好了：
+
+「HTML」圖示
+class_manager_online
+ HTML 
+開啟
+要順利升級為線上同步版，你需要完成 「雲端後端」 與 「網頁前端」 兩個部分的設定。請依照以下步驟操作：
+
+第一步：建立 Google 試算表與後端資料庫
+建立試算表： 打開你的 Google 雲端硬碟，新增一份空白的 Google 試算表。
+
+重新命名工作表： 將左下角預設的「工作表1」點兩下，重新命名為 Database（大小寫需完全一致，不要有空格）。
+
+開啟指令碼編輯器： 點擊上方選單的 擴充功能 > Apps Script。
+
+貼上程式碼： 將原本編輯器裡的 function myFunction() {...} 全部刪除，替換成以下的程式碼：
+
+JavaScript
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Database');
+  if (!sheet) {
+    return ContentService.createTextOutput(JSON.stringify({error: "找不到 Database 工作表"})).setMimeType(ContentService.MimeType.JSON);
+  }
+  var data = sheet.getDataRange().getValues();
+  var result = {};
+  for (var i = 0; i < data.length; i++) {
+    result[data[i][0]] = data[i][1];
+  }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Database');
+  if (!sheet) {
+    sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Database');
+  }
+  var params = JSON.parse(e.postData.contents);
+  var key = params.key;
+  var value = params.value;
+
+  var data = sheet.getDataRange().getValues();
+  var found = false;
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0] === key) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    sheet.appendRow([key, value]);
+  }
+  return ContentService.createTextOutput(JSON.stringify({status: 'success'})).setMimeType(ContentService.MimeType.JSON);
+}
+
+// 處理 CORS 預檢請求
+function doOptions(e) {
+  return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.TEXT);
+}
+第二步：部署並取得網址 (API URL)
+儲存與部署： 點擊 Apps Script 編輯器右上角的 儲存專案 (磁碟機圖示)，接著點擊藍色按鈕 部署 > 新增部署作業。
+
+設定網頁應用程式：
+
+點擊齒輪圖示，選擇 網頁應用程式。
+
+執行身分：選擇「我」。
+
+誰可以存取：下拉選擇「所有人」（這步非常重要，否則網頁會無法寫入資料）。
+
+授權： 點擊「部署」後，會跳出需要授權的視窗。請點選「審查權限」> 選擇你的 Google 帳號 > 點選左下角的「進階」> 「前往 (不安全)」> 「允許」。
+
+複製網址： 部署完成後，畫面會給你一串 網頁應用程式網址 (Web App URL)，請把它複製下來。
+
+第三步：更新並啟用你的 HTML 檔案
+下載上方為你準備好的 class_manager_online.html 檔案。
+
+用「記事本」或任何文字編輯器打開它。
+
+將畫面拉到最底下的 <script> 區塊，找到第 340 行左右：
+const API_URL = '[https://script.google.com/macros/s/你的原本網址/exec](https://script.google.com/macros/s/你的原本網址/exec)';
+
+把引號內的網址，替換成你在「第二步」中剛複製下來的那一長串新網址。
+
+儲存檔案。
+
+完成以上設定後，你用瀏覽器點開這個 HTML 檔案，它就會開始與你的 Google 試算表進行連線。你在網頁上新增名單、打勾作業，資料都會自動在背景傳送到試算表中。你可以把這個 HTML 檔案隨意傳到平板、手機或家裡的電腦上，因為大家都連向同一個試算表，所以資料就會完全同步了！
+
+(附註：因為雲端存檔需要 1~2 秒的連線時間，為了避免操作卡頓，我設計了「背景非同步儲存」。你在打勾作業時畫面不會卡住，系統會默默在右上角顯示「🔄 同步中」，完成後顯示「✅ 已同步至雲端」。)
+
+顯示無法連線至雲端
+
+看到「無法連線至 Google 雲端」的錯誤提示，這通常是因為 Google Apps Script 的權限沒有完全開放，或者是部署版本沒有更新所導致的。因為網頁（前端）要跨網域存取 Google 試算表（後端），Google 的安全阻擋機制非常嚴格。
+
+請依照以下 3 個最常見的原因，幫我依序檢查並重新設定一次：
+
+檢查一：部署權限是否完全設定為「所有人」？（最常見的錯誤）
+如果是設定為「需要登入」或「僅限 Google 帳號使用者」，Google 會阻擋你的網頁去讀取資料。
+
+回到 Google Apps Script 編輯器。
+
+點擊右上角的「部署」>「管理部署作業」(請不要點新增)。
+
+點擊右上角的 ✏️ (編輯圖示)。
+
+檢查左側的兩個選項是否「完全一致」：
+
+執行身分：我 (你的 Email)
+
+誰可以存取：所有人 (Anyone) 👈 請務必確認是這個選項
+
+如果有修改，請務必看「檢查二」來更新版本。
+
+檢查二：修改後有沒有發佈「新版本」？（第二常見的錯誤）
+在 Google Apps Script 中，修改了程式碼或權限後，只按「儲存」是不會生效的！你必須覆蓋舊版本：
+
+承上一步，在「管理部署作業」的編輯畫面中。
+
+找到「版本」這個下拉式選單。
+
+點擊並選擇 「建立新版本」。
+
+點擊「部署」。
+
+(注意：網址不會改變，一樣是原本那串，但背後的權限跟程式碼才會真正更新)。
+
+檢查三：試算表底下的分頁名稱是否為 Database？
+請回到你的 Google 試算表畫面：
+
+檢查畫面最左下角的「工作表名稱」，必須精準命名為 Database（開頭大寫 D，不能有空格，不能叫「工作表1」）。如果名稱不對，程式會找不到地方存檔而回報錯誤。
+
+🛠️ 快速測試：
+請確認完成上述三個檢查（尤其是重新建立新版本並部署）後，重新整理你的 HTML 網頁。
+
+如果還是跳出錯誤，請試著把那串 [https://script.google.com/macros/s/.../exec](https://script.google.com/macros/s/.../exec) 網址直接貼在瀏覽器的新分頁中打開，並告訴我畫面上顯示了什麼文字？（如果是顯示 {} 或 {"error":"..."}，就代表連線其實是成功的，我們再來找其他原因！）
+
+有辦法讓他變成線上的網址嗎?而不是網頁檔案
+
+絕對可以！既然我們已經把資料庫換成了雲端的 Google 試算表，只要把這個 HTML 網頁檔案上傳到「免費的網頁代管平台」，它就會變成一個真正的線上系統，你可以隨時隨地用一串網址打開它，再也不需要帶著檔案跑了。
+
+這裡推薦兩種最簡單、完全免費的做法。強烈建議使用第一種，1 分鐘就能搞定！
+
+方法一：使用 Netlify Drop（最快、最簡單，免寫程式）
+Netlify 是全球非常知名的網頁代管平台，他們提供了一個「直接把資料夾拖進去」就能變成網址的服務。
+
+操作步驟：
+
+準備檔案：
+
+在你的電腦桌面上新增一個資料夾，命名為 ClassManager（名稱可自訂，最好是英文）。
+
+將你剛下載的 class_manager_online.html 放進這個資料夾裡。
+
+⚠️ 重要： 請把檔名重新命名為 index.html（這是網頁伺服器預設讀取的主首頁名稱）。
+
+上傳網頁：
+
+打開瀏覽器，前往 Netlify Drop 網站：app.netlify.com/drop
+
+把你剛剛建立的整個 ClassManager 資料夾，直接拖曳到網頁中間的圓圈虛線區塊內。
+
+大功告成：
+
+幾秒鐘後，畫面上就會出現一串綠色的網址（類似 https://xxxxxx.netlify.app）。
+
+點擊這串網址，你的班級作業單系統就上線了！
+
+永久保留（建議）：
+
+剛傳上去的網址如果沒有註冊帳號，幾天後可能會失效。請點擊畫面上的「Sign up」註冊一個免費帳號，這個網址就會永久免費保留給你，你還可以自訂網址名稱（例如：mr-wang-class.netlify.app）。
+
+方法二：使用 GitHub Pages（最穩定、工程師最愛）
+如果你希望有一個非常穩定、絕對不會不見的專屬網址，GitHub 是最好的選擇，但步驟稍微多一點點。
+
+操作步驟：
+
+前往 GitHub 註冊一個免費帳號。
+
+登入後，點擊右上角的「+」號，選擇「New repository」建立一個新專案。
+
+Repository name 填寫專案名稱（例如：class-homework），並確保設定為 Public (公開)，然後點擊最下方的「Create repository」。
+
+進入專案畫面後，點擊「uploading an existing file」，把你的網頁檔案拖曳進去（同樣建議先將檔名改為 index.html），然後點擊綠色按鈕「Commit changes」儲存。
+
+開啟網址：
+
+點擊畫面上方的「Settings (齒輪圖示)」。
+
+在左側選單找到「Pages」。
+
+在 Build and deployment 區塊的 Branch 下拉選單中，選擇 main，然後按右邊的「Save」。
+
+等待大約 1~2 分鐘重新整理網頁，畫面上方就會出現你的專屬網址（通常是 https://你的帳號.github.io/class-homework/）。
+
+💡 小提醒：縮短網址方便記憶
+無論你用哪一種方法，如果覺得平台配發的網址太長不好記，你可以複製該網址，到 Reurl 或 Bitly 這種免費縮網址網站，把它變成短短一串（例如 reurl.cc/myclass），甚至可以產生 QR Code 存存在手機裡，以後一掃就能開始點名與登記作業了！
+
+有沒有隱私的保障呢
+
+這是一個非常棒且重要的問題！既然系統裡會存放學生的姓名、出缺席和作業進度，隱私與資訊安全絕對是第一考量。
+
+老實說，目前的架構屬於「基礎防護」等級。以下我為你拆解目前的隱私狀況，以及你可以如何加強保護：
+
+目前的隱私與安全狀況
+資料存放在哪裡？（安全）
+你所有的學生資料，都存在你個人 Google 雲端硬碟的試算表裡。Google 的伺服器安全性極高，只要你的 Google 帳號密碼沒有外洩，資料庫本身是非常安全的。
+
+誰能看到你的網頁？（隱藏式安全）
+無論你用 Netlify 或 GitHub 產生網址，這個網址在網路上是「公開」的。但這屬於「隱藏式安全（Security through obscurity）」——就像你家大門沒有鎖，但因為沒有人知道你家地址，所以陌生人進不來。只要你沒有把這串網址公開貼在臉書、學校論壇上，就不會有人看到。
+
+後端連線的弱點（潛在風險）
+因為我們將 Google Apps Script 的存取權限設定為「所有人」，如果有人拿到你的網址，且對方是懂網頁程式碼的工程師，他是有可能透過檢查網頁原始碼，找出你的 API 網址並撈取試算表文字資料的。
+
+老師可以如何加強隱私保障？
+為了解決上述的潛在風險，強烈建議你採取以下幾種做法：
+
+做法一：資料去識別化（最簡單且最有效）
+絕對不要在系統上輸入學生的「完整真實姓名」或「身分證字號等敏感個資」。
+建議使用「座號 + 姓氏」（例如：01 王、15 陳），或是使用「英文名字 / 暱稱」。只要資料本身無法辨識出特定真人，就算真的不小心外流，也不會有侵犯隱私的問題。
+
+做法二：妥善保管網址
+把這個網頁的網址加到你自己的手機瀏覽器書籤，或是貼在只有你自己看得到的 LINE「個人群組 (Keep 筆記)」中。不要把這個網址發到家長群組。
+
+做法三：使用學校的教育版 Google 帳號
+如果你是用學校核發的 Google Workspace for Education 帳號來建立那份試算表，你的資料會受到 Google 企業/教育條款的嚴格保護，Google 不會去掃描這些資料作任何用途。
+
+💡 進階升級：加入「網頁通關密碼」
+如果你覺得光是去識別化還不夠，希望多加一道鎖，我可以在目前的網頁前端幫你寫一個簡單的「密碼鎖」。
+設定好後，每次打開這個網址，畫面會全白並要求輸入你設定好的密碼（例如：0830class），輸入正確後才會顯示班級名單與連線讀取資料。這能有效擋掉 99% 不小心點進網址的路人或學生。
+
+你需要我幫你的網頁加上這道密碼鎖功能嗎？
+
+加上密碼鎖 為 415841582uiiojii
+
+另 幫我直接將試算表網址編輯進去
+
+https://script.google.com/macros/s/AKfycbw3D33oEUKPzin61XiQn2_FgL0KY5ftdfw4CQ84kc3PQxDl2En-oXM25BPzhABXMfK0/exec
+
+你的 class_manager_online_locked.html 雲端連線加密版檔案已經為你準備好了：
+
+「HTML」圖示
+class_manager_online_locked
+ HTML 
+開啟
+我已經幫你加上了全螢幕的密碼鎖功能，同時也將你提供的 API 網址寫入系統了。
+
+本次更新的防護機制說明：
+開啟網頁即鎖定： 任何人只要開啟這個網頁，畫面只會顯示一個簡單的「系統解鎖」輸入框，完全看不到後面的任何選單、設定或是你的班級名稱與學生資料。
+
+密碼驗證： 必須輸入正確的密碼 415841582uiiojii 並按下「解鎖登入」（或直接按 Enter 鍵）才會進入系統，否則會跳出紅色的錯誤提示。
+
+無縫的「工作階段」記憶 (Session Storage)： 當你輸入正確密碼解鎖後，只要你不關閉這個瀏覽器分頁/視窗，就算你不小心按到「重新整理 (F5)」，系統也不會煩人地要求你重新輸入密碼。
+
+離開即上鎖： 當你下課或下班，直接把這個瀏覽器分頁關掉。下次再打開同一個網址時，它就會重新上鎖，確保別人就算借用你的電腦也進不去。
+
+接下來你該做什麼？
+既然網址和密碼都寫好了，你只需要使用前面提到的 Netlify Drop (推薦，最快) 或是 GitHub Pages，把這個新的 class_manager_online_locked.html 檔案（記得先改名為 index.html）丟上去，就可以產生你專屬的安全線上版網址了！
+
+增加 一個一個修正輸入錯誤功能 點進學生名字按鈕會有一個"輸入錯誤刪除此項作業按鈕,按下可刪除已經輸入作業 需有確定確認功能
+
+
+
+先修正單機版
+
+你的 class_manager_offline_v8.html 單機版檔案已經更新完成：
+
+「HTML」圖示
+class_manager_offline_v8
+ HTML 
+開啟
+我已經將「單項作業刪除」的功能加入到這份單機版檔案中了。
+
+本次更新功能說明：
+個別刪除按鈕：現在點進任何一位學生的名字（個人紀錄本）後，在「已指派清單」的每一項作業旁邊（完成打勾按鈕的左側），都會多出一個紅色的 「🗑️ 垃圾桶」 按鈕。
+
+防呆確認機制：點擊該刪除按鈕時，系統會跳出確認視窗：「確定要刪除這項作業嗎？ (注意：刪除後無法復原)」，按下確定後，該筆錯誤輸入的作業就會立刻從該學生的清單中移除。
+
+此版本為單機版，不包含線上同步與密碼鎖功能，適合直接存放於電腦或隨身碟中離線使用。
+
+修正雲端版
+
+你停止了這則回覆
+增加 一個一個修正輸入錯誤功能 點進學生名字按鈕會有一個"輸入錯誤刪除此項作業按鈕,按下可刪除已經輸入作業 需有確定確認功能
+
+
+
+再修正線上版
+
+Python
 html_content = r'''<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -1262,3 +3399,1445 @@ with open('class_manager_online_locked_v2.html', 'w', encoding='utf-8') as f:
     f.write(html_content)
 
 print("[file-tag: class_manager_online_locked_v2.html]")
+
+程式碼輸出內容
+[file-tag: class_manager_online_locked_v2.html]
+
+你的 class_manager_online_locked_v2.html 檔案（包含密碼鎖的線上同步版）已經幫你更新好了：
+[file-tag: code-generated-file-2c2562dd-e08d-40b9-85d4-5836e8dc646d]
+
+這份檔案現在也具備了「刪除輸入錯誤作業」的功能。
+
+更新細節：
+刪除按鈕：點進學生的紀錄本後，已指派清單內的每個項目最右側，現在都會有一個紅框白底的「🗑️ 垃圾桶按鈕」。
+
+安全防呆：當你不小心按到時，系統會先跳出警告訊息 確定要刪除這項作業嗎？ (注意：刪除後無法復原)，點選確定後才會真正刪除。
+
+雲端同步刪除：刪除作業後，這個變動會與「打勾完成作業」一樣，觸發非同步的儲存機制（右上角會顯示「🔄 同步中...」），直接將刪除的結果寫回你的 Google 試算表中，確保雲端資料同步更新。
+
+這份檔案已經包好了你剛才部署的 Web App 網址 ([https://script.google.com/macros/s/.../exec](https://script.google.com/macros/s/.../exec)) 與你設定的密碼 (415841582uiiojii)，你可以直接把這個新的 .html 檔案透過 Netlify 重新上傳覆蓋，就能在線上使用了！
+
+單機版完整說明書
+
+這是一份專為最新單機版（v8）撰寫的完整操作說明書。這套系統專為國小教師設計，無需安裝、無需網路，只要使用瀏覽器（如 Chrome、Edge 等）開啟 HTML 檔案即可運作，資料會自動安全地保存在您的裝置本機。
+
+建議您可以將這份說明書存檔，方便隨時查閱。
+
+📝 班級作業單管理系統 (單機版) - 完整操作說明書
+壹、 基礎設定與建立名單 (首次使用必讀)
+第一次開啟檔案時，請先完成班級基礎資料的建立。
+
+進入設定： 點擊畫面上方的「⚙️ 設定」按鈕。
+
+班級全域設定： 填寫「校別」、「班別」與「老師名字」。這些資訊會顯示在系統最上方的標題列中。
+
+選擇年級： 下拉選擇「低年級」或「中高年級」。這會自動調整指派作業時出現的科目（中高年級會多出自然、社會、英文）。
+
+輸入學生名單：
+
+系統提供最多 30 個名額。
+
+依序輸入學生的「序號」、「學校」、「班級」與「姓名」。
+
+美語班級： 可選擇預設的「資優」，或選擇「手動輸入」來自由填寫級別名稱。
+
+儲存： 完成後點擊最下方的「儲存設定」，系統會自動回到主畫面並生成學生介面。
+
+貳、 主畫面介面與顯示功能
+系統的主畫面提供多種視圖與自訂功能，方便老師在不同情境下使用。
+
+1. 介面視圖切換
+表格模式： 適合在座位上用電腦仔細核對作業明細，能一眼看清所有人的詳細指派項目與狀態。
+
+卡片模式： 適合拿著平板巡堂時使用，大按鈕方便觸控點選。
+
+2. 字體大小縮放 (A+ / A-)
+點擊畫面上方的「A+」可放大全站字體（最大至 28），點擊「A-」可縮小（最小至 11）。系統會自動記憶您最後設定的字體大小，下次開啟無須重調。
+
+3. 卡片雙截進度條與狀態圖示
+在卡片模式中，卡片背景會根據完成度動態填滿顏色：
+
+上半截（綠色）： 學校正規作業的完成進度。
+
+下半截（藍紫色）： 「評卷指派 / 額外評卷」的測驗完成進度。
+
+狀態圖示：
+
+🚨 代表有考試未完成。
+
+⭐ 代表考試皆已完成。
+
+🏫 代表該生當日有請假或老師註記。
+
+參、 指派作業與測驗
+1. 個別指派 (點擊學生卡片)
+開啟紀錄本： 點擊任何一位學生的卡片或名字。
+
+選擇科目與項目： 點選上方的科目標籤。系統內建多種細項：
+
+國語： 包含作文（可填寫題目）、學習單（可選課別）、預習單（可選課別）。
+
+其他： 包含週記、閱讀心得（可輸入主題或範圍）。
+
+額外評卷： 專門指派給個別學生的額外評量或考卷（進度會算在下半部的紫色進度條）。
+
+動態範圍選擇： 勾選作業後，可進一步利用下拉選單選擇課別（L1~L12）或輸入特定內容。
+
+2. 全班統一評卷指派 💪
+遇到全班性的測驗或發放評量時，可使用一鍵指派功能。
+
+點擊主畫面上方的紫底按鈕「💪 全班評卷指派」。
+
+勾選項目（評量、考卷、心智圖等）並設定範圍。
+
+點擊「確認全班指派」，系統會自動把這些測驗加入全班所有學生的紀錄本中。
+
+肆、 作業狀態管理與錯誤修正
+點進學生的個人紀錄本後，在「已指派清單」中可以進行狀態管理：
+
+標記完成： 點擊項目最右側的 ☐ 圓圈，即可將狀態切換為已完成（變為綠色 ☑️）。再點一次可取消完成。
+
+刪除錯誤輸入： 如果不小心指派錯了作業，點擊該項目旁邊的紅色「🗑️ 垃圾桶按鈕」。系統會跳出確認視窗，按下確定後即可將該項作業徹底刪除。
+
+伍、 報表輸出與代課功能
+1. 輸出學生報表 (Excel / CSV)
+點擊「⚙️ 設定」，在下方找到輸出區塊：
+
+📄 僅名單： 匯出乾淨的學生名冊（含序號、學校、班級、姓名、美語班級），適合列印作為實體點名表。
+
+📊 含作業進度： 匯出當日所有的作業清單、進度比例與請假註記。學校作業與評卷測驗會分流顯示，並明確標示該項目是「全班指派」還是「個別額外指派」。
+
+2. 原班與代課班雙系統 🔄
+若需要短暫代課，系統支援開啟第二個完全獨立的班級空間。
+
+點擊畫面上方的「➕ 代課」按鈕。
+
+可將代課班的學生名單（純文字，一行一個名字）直接貼入文字框中「批次載入」。
+
+建立後，畫面上方會出現「🔄 切換至：代課班 / 原班」的按鈕。代課班的標題與視窗皆會呈現紫色以防混淆，資料與原班完全隔離。
+
+代課結束後，可至設定中點擊「🛑 結束代課」清空代課介面（歷史紀錄仍會保存在背景）。
+
+陸、 ⚠️ 資料備份與跨裝置轉移 (極度重要)
+因為這是單機版系統，所有的資料都只存在「您當前使用的瀏覽器」中。 如果您更換電腦、更換瀏覽器，或是清除了瀏覽器的暫存紀錄，資料就會不見。
+
+若要更換裝置或備份資料，請務必使用以下功能（位於「⚙️ 設定」最下方）：
+
+備份 (匯出備份檔)：
+點擊「⬇️ 匯出備份檔」，系統會下載一個 .json 檔案。這包含了您的原班名單、代課班名單、全域設定，以及過去每一天的所有指派紀錄。
+
+轉移與還原 (匯入備份檔)：
+在另一台電腦或平板上打開系統，進入設定點擊「⬆️ 匯入備份檔」，選擇剛剛下載的 .json 檔案。所有資料就會瞬間無縫接軌轉移過去。
+
+💡 強烈建議：每週固定「匯出備份檔」一次，並存放在雲端硬碟或隨身碟中，確保資料安全萬無一失。
+
+8版的代課不見
+
+作業如果按錯刪除後，詳細指派內容那邊還是會顯示
+
+如果重整網頁，資料會變成全部空白（7版不會）
+
+感謝你的詳細回饋！這三個問題的發生原因我已經完全找出來並修復了。
+
+關於 Bug 發生的原因（技術小說明）：
+
+「重整變空白」與「代課不見」：這是因為新舊版本的資料夾結構不同，當系統讀取到舊版資料而找不到「代課班」的欄位時，發生了錯誤，導致整個網頁停止載入。我已經加上了「強制資料修復」的防呆機制，現在無論資料多舊，系統都會自動補齊缺少的欄位，再也不會白畫面了！
+
+「刪除後詳細內容還是顯示」：這是因為當你刪除了「最後一項」作業時，系統雖然清空了清單，但「忘記」去通知外層的表格更新畫面。現在已經補上更新指令了。
+
+以下是為你準備的兩個版本，兩者皆已修復上述問題，並加上了「單項作業刪除」的功能：
+
+📁 單機版 (v9) - 適合存放在隨身碟離線使用
+「HTML」圖示
+class_manager_offline_v9
+ HTML 
+開啟
+📁 雲端連線加密版 (v3) - 適合上傳至 Netlify 產生網址
+(已經包含你設定的密碼：415841582uiiojii 以及你的 Apps Script 連線網址)
+
+「HTML」圖示
+class_manager_online_locked_v3
+ HTML 
+開啟
+✨ 新增功能說明：單項作業刪除
+現在點進任何一位學生的名字（個人紀錄本）後，在「已指派清單」的每一項作業旁邊（完成打勾按鈕的左側），都會多出一個紅色的 「🗑️」 按鈕。
+
+防呆確認機制：點擊該刪除按鈕時，系統會跳出確認視窗：「確定要刪除這項作業嗎？ (注意：刪除後無法復原)」，按下確定後，該筆錯誤輸入的作業就會立刻從該學生的清單中移除。
+
+雲端同步刪除 (連線版)：刪除作業後，右上角會顯示「🔄 同步中...」，將刪除的結果寫回你的 Google 試算表中，確保雲端資料完全同步。
+
+
+
+
+Gemini 是 AI，有時可能會出錯。
+
+Finalizing Schema Stability
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>班級作業單 (線上同步版)</title>
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --success: #2ECC71;
+            --bg: #F5F7FA;
+            --card-bg: #FFFFFF;
+            --text: #333333;
+            --border: #E4E7EB;
+            --warning: #E74C3C;
+            --star: #F1C40F;
+            --note: #3b82f6;
+            --sub-class: #8e44ad;
+            --extra: #8b5cf6;
+        }
+        html { font-size: 16px; } 
+        * { box-sizing: border-box; font-family: "Helvetica Neue", Helvetica, "PingFang TC", "LiHei Pro", "Microsoft JhengHei", sans-serif; }
+        body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); }
+        
+        /* Loading & Login Overlays */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 10000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .login-box {
+            background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            text-align: center; max-width: 90%; width: 350px;
+        }
+        #loginOverlay input {
+            padding: 12px; font-size: 1.1rem; width: 100%; margin-bottom: 15px; border: 2px solid var(--border); border-radius: 8px; outline: none; transition: border-color 0.2s;
+        }
+        #loginOverlay input:focus { border-color: var(--primary); }
+        #pwdError { color: var(--warning); display: none; margin-top: 10px; font-weight: bold; font-size: 0.9rem;}
+
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 9999;
+            display: none; justify-content: center; align-items: center;
+            flex-direction: column; font-size: 1.5rem; font-weight: bold; color: var(--primary);
+        }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid var(--primary);
+            border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #syncStatus { font-size: 0.9rem; margin-left: 10px; font-weight: normal; color: #fff; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 10px; }
+
+        /* Header & Top Bar */
+        header { background: var(--primary); color: white; padding: 1rem; text-align: center; position: sticky; top: 0; z-index: 10; font-size: 1.2rem; font-weight: bold; transition: background 0.3s; display: flex; justify-content: center; align-items: center; gap: 10px;}
+        .header-sub { background: var(--sub-class) !important; }
+        
+        .controls { padding: 0.6rem 1rem; display: flex; justify-content: space-between; align-items: center; background: white; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;}
+        .controls-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .controls input[type="date"] { padding: 0.5rem; border: 1px solid var(--border); border-radius: 5px; font-size: 1rem; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center;}
+        .btn { padding: 0.5rem 0.8rem; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; background: var(--primary); color: white; white-space: nowrap; }
+        .btn-success { background: var(--success); }
+        .btn-outline { background: white; color: var(--primary); border: 1px solid var(--primary); }
+        .btn-sub { background: white; color: var(--sub-class); border: 1px solid var(--sub-class); font-weight: bold;}
+        .btn-extra { background: var(--extra); color: white; border: 1px solid var(--extra); font-weight: bold; box-shadow: 0 2px 4px rgba(139,92,246,0.3); }
+        .font-btn { font-weight: bold; padding: 0.4rem 0.6rem; font-size: 1.1rem;}
+
+        /* Student Grid */
+        .student-grid { display: none; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: 10px; padding: 1rem; }
+        .student-card { 
+            background: var(--card-bg); 
+            padding: 0.8rem 0.3rem; 
+            text-align: center; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            cursor: pointer; 
+            border: 2px solid var(--border); 
+            font-size: 1.1rem; 
+            font-weight: bold;
+            overflow: hidden; 
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .student-card:active { opacity: 0.7; transform: scale(0.98); }
+        .student-name { margin-bottom: 5px; display: flex; justify-content: center; align-items: center; gap: 5px; flex-wrap: wrap;}
+        .progress-text { font-size: 0.8rem; font-weight: normal; color: #666; }
+        .exam-icon, .note-icon { font-size: 1.1rem; }
+
+        /* Table View */
+        .table-responsive { display: block; width: 100%; overflow-x: auto; padding: 1rem; }
+        .data-table { width: 100%; border-collapse: collapse; min-width: 900px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .data-table th, .data-table td { padding: 0.8rem; border: 1px solid var(--border); text-align: left; vertical-align: middle; }
+        .data-table th { background: var(--primary); color: white; cursor: pointer; user-select: none; white-space: nowrap; position: relative; transition: background 0.3s;}
+        .data-table th.th-sub { background: var(--sub-class); }
+        .data-table th:hover { opacity: 0.9; }
+        .data-table tr:nth-child(even) { background-color: #f8fafc; }
+        .data-table tr:hover { background-color: #f1f5f9; }
+        .clickable-name { font-weight: bold; color: var(--primary); cursor: pointer; text-decoration: underline; }
+
+        /* Task Badges in Table */
+        .badge-list { display: flex; flex-wrap: wrap; gap: 4px; }
+        .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem; white-space: nowrap; }
+        .badge-done { border: 1px solid var(--success); color: var(--success); background: #f0fdf4; }
+        .badge-undone { border: 1px solid #94a3b8; color: #64748b; background: white; }
+        .badge-leave { background: #f87171; color: white; border: 1px solid #f87171; }
+        .badge-note { background: var(--note); color: white; border: 1px solid var(--note); }
+        .badge-extra { border: 1px solid var(--extra); color: var(--extra); background: white; }
+        .badge-extra-done { border: 1px solid var(--extra); color: white; background: var(--extra); }
+
+        /* Modals */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); z-index: 100; overflow-y: auto; padding-bottom: 30px;}
+        .modal-header { background: var(--primary); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top:0; z-index: 101; transition: background 0.3s;}
+        .modal-header.header-sub { background: var(--sub-class); }
+        .modal-content { padding: 1rem; max-width: 900px; margin: 0 auto;}
+        .close-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+        /* Settings Form */
+        .settings-form label { display: block; margin-top: 15px; font-weight: bold; }
+        .settings-form select, .settings-form input[type="text"], .settings-form input[type="number"], .settings-form textarea { width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 5px; font-size: 1rem; }
+        
+        .student-setting-container { max-height: 50vh; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); padding: 10px; border-radius: 8px; background: #f8fafc; }
+        .student-setting-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: white; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid var(--border); }
+        .student-setting-row > * { flex: 1 1 80px; min-width: 70px; }
+        .student-setting-row .row-index { flex: 0 0 30px; min-width: 30px; font-weight: bold; color: #64748b; text-align: center; }
+
+        .export-box { display:flex; flex-wrap: wrap; gap:10px; margin-top: 15px; background: #e2e8f0; padding: 15px; border-radius: 8px; align-items: center; }
+        .backup-box { display:flex; flex-wrap: wrap; gap:10px; margin-top: 10px; background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; align-items: center; }
+
+        /* Student Detail Modal */
+        .subject-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .subject-tag { padding: 0.5rem 1rem; background: #e2e8f0; border-radius: 20px; cursor: pointer; font-size: 1rem; }
+        .subject-tag:active { background: #cbd5e1; }
+        
+        .task-list { margin-top: 20px; }
+        .task-item { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 0.8rem; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border); }
+        .task-info { flex-grow: 1; }
+        .task-subject { font-size: 0.85rem; color: #64748b; font-weight: bold; }
+        .task-exam-badge { background: var(--warning); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px; }
+        .task-name { font-size: 1.1rem; margin-top: 3px; }
+        
+        /* Task Action Buttons */
+        .task-actions { display: flex; gap: 8px; align-items: center; }
+        .check-btn { width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 2px solid var(--border); background: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; transition: all 0.2s ease; }
+        .check-btn.checked { background: var(--success); border-color: var(--success); color: white; }
+        .delete-btn { width: 2.5rem; height: 2.5rem; border-radius: 8px; border: 1px solid var(--warning); background: white; color: var(--warning); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; transition: all 0.2s ease; }
+        .delete-btn:active { background: #fee2e2; transform: scale(0.9); }
+
+        /* Task Select Form Elements */
+        .task-row { display: flex; flex-direction: column; background: #f8fafc; padding: 0.8rem; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); }
+        .task-main { display: flex; align-items: center; font-size: 1.1rem; gap: 10px; }
+        .task-main input[type="checkbox"] { width: 1.4rem; height: 1.4rem; }
+        .task-details { margin-top: 10px; padding-left: 32px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .task-details select, .task-details input[type="text"] { padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 1rem; }
+        .full-width-btn { width: 100%; margin-top: 20px; padding: 1rem; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+    <!-- 密碼登入畫面 -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2 style="margin-top:0; color: var(--primary);">班級作業單解鎖</h2>
+            <p style="color: #666; font-size: 0.9rem; margin-bottom: 20px;">請輸入系統密碼以存取資料</p>
+            <input type="password" id="passwordInput" placeholder="輸入密碼" onkeypress="if(event.key === 'Enter') checkPassword()">
+            <button class="btn btn-success" style="width: 100%; font-size: 1.1rem; padding: 12px;" onclick="checkPassword()">解鎖登入</button>
+            <p id="pwdError">密碼錯誤，請重新輸入！</p>
+        </div>
+    </div>
+
+    <!-- 載入中畫面 -->
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <div id="loadingText">與雲端同步中...</div>
+    </div>
+
+    <header id="mainHeader">
+        <span id="headerTitle">班級作業單</span>
+        <span id="syncStatus" style="display:none;"></span>
+    </header>
+
+    <div class="controls">
+        <div class="controls-left">
+            <input type="date" id="datePicker">
+            <span id="classToggleContainer"></span>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-outline font-btn" onclick="changeFontSize(1)" title="放大字體">A+</button>
+            <button class="btn btn-outline font-btn" onclick="changeFontSize(-1)" title="縮小字體">A-</button>
+            <div style="width: 1px; height: 24px; background: var(--border); margin: 0 2px;"></div>
+            <button class="btn btn-extra" onclick="openBulkTaskSelect()">💪 全班評卷指派</button>
+            <div style="width: 1px; height: 24px; background: var(--border); margin: 0 2px;"></div>
+            <button class="btn btn-outline" onclick="toggleViewMode()">切換視圖</button>
+            <button class="btn btn-outline" onclick="openSettings()">⚙️ 設定</button>
+            <button class="btn btn-success" onclick="exportStudentList(true)">匯出今日</button>
+        </div>
+    </div>
+
+    <!-- Table View -->
+    <div class="table-responsive" id="studentTableContainer">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="th-dynamic" id="th-rollNo" onclick="sortTable('rollNo')" style="width: 70px;">序號 ↕</th>
+                    <th class="th-dynamic" id="th-schoolClass" onclick="sortTable('schoolClass')" style="width: 120px;">學校-班級 ↕</th>
+                    <th class="th-dynamic" style="width: 100px;">姓名</th>
+                    <th class="th-dynamic" id="th-englishClass" onclick="sortTable('englishClass')" style="width: 120px;">美語班級 ↕</th>
+                    <th class="th-dynamic" style="width: 120px;">狀態</th>
+                    <th class="th-dynamic">詳細指派內容</th>
+                    <th class="th-dynamic" style="width: 80px;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <!-- Grid View -->
+    <div class="student-grid" id="studentGrid"></div>
+
+    <!-- 設定 Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-header" id="settingsHeader">
+            <h3>班級設定 (雲端同步)</h3>
+            <button class="close-btn" onclick="closeModal('settingsModal')">✕</button>
+        </div>
+        <div class="modal-content settings-form">
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top: 5px;">
+                <div style="flex:1; min-width:100px;"><label style="margin-top:0;">校別：</label><input type="text" id="setting_school" placeholder="例: 光華國小"></div>
+                <div style="flex:1; min-width:100px;"><label style="margin-top:0;">班別：</label><input type="text" id="setting_class" placeholder="例: 3-1"></div>
+                <div style="flex:1; min-width:100px;"><label style="margin-top:0;">老師名字：</label><input type="text" id="setting_teacher" placeholder="例: 王大明"></div>
+            </div>
+
+            <label>年級設定：</label>
+            <select id="gradeSelect" style="margin-bottom: 10px;">
+                <option value="low">低年級</option>
+                <option value="high">中高年級</option>
+            </select>
+            
+            <label>學生名單設定：</label>
+            <div class="student-setting-container" id="studentInputs"></div>
+            
+            <div class="export-box">
+                <span style="font-weight:bold; margin-right:auto;">輸出學生列表：</span>
+                <button class="btn btn-outline" onclick="exportStudentList(false)">📄 僅名單</button>
+                <button class="btn btn-outline" style="border-color:var(--success); color:var(--success);" onclick="exportStudentList(true)">📊 含作業進度</button>
+            </div>
+
+            <button class="btn btn-success full-width-btn" onclick="saveSettings()">儲存至雲端</button>
+            
+            <div style="display:flex; gap:10px; margin-top: 10px;">
+                <button class="btn btn-outline" style="color: var(--warning); border-color: var(--warning); flex:1; padding: 10px; font-size: 1rem;" onclick="clearStudentList()">🗑️ 清空名單</button>
+                <button id="endSubBtn" class="btn btn-outline" style="display:none; color: var(--sub-class); border-color: var(--sub-class); flex:1; padding: 10px; font-size: 1rem;" onclick="closeSubClass()">🛑 結束代課</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 代課初始化 Modal -->
+    <div id="subInitModal" class="modal">
+        <div class="modal-header header-sub">
+            <h3>新增代課班級</h3>
+            <button class="close-btn" onclick="closeModal('subInitModal')">✕</button>
+        </div>
+        <div class="modal-content settings-form">
+            <p style="color:#666; margin-top:0;">建立一個獨立的代課班級，資料與原班級完全分開。</p>
+            <label>批次載入名單 (選填)：</label>
+            <p style="font-size:0.85rem; color:#888; margin: 5px 0;">每行一個名字，將自動依序號排入，未輸入的欄位後續可再手動設定。</p>
+            <textarea id="subBatchNames" rows="8" placeholder="王小明&#10;陳大喵&#10;林小華..."></textarea>
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-success" style="flex:1; font-size: 1.1rem; padding: 12px;" onclick="createSubClass(true)">載入並建立</button>
+                <button class="btn btn-outline" style="flex:1; font-size: 1.1rem; padding: 12px;" onclick="createSubClass(false)">手動逐一設定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 學生作業 Modal -->
+    <div id="studentDetailModal" class="modal">
+        <div class="modal-header" id="detailHeader">
+            <h3 id="currentStudentName">學生姓名</h3>
+            <button class="close-btn" onclick="closeModal('studentDetailModal')">✕</button>
+        </div>
+        <div class="modal-content">
+            <h4 style="margin-top:0;">新增項目 (點選類別)</h4>
+            <div class="subject-tags" id="subjectTags"></div>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            <h4 style="margin-top:0;">已指派清單</h4>
+            <div class="task-list" id="taskList"></div>
+        </div>
+    </div>
+
+    <!-- 選擇作業項目 Modal -->
+    <div id="taskSelectModal" class="modal">
+        <div class="modal-header" id="taskHeader">
+            <h3 id="currentSubjectTitle">選擇作業</h3>
+            <button class="close-btn" onclick="closeModal('taskSelectModal')">✕</button>
+        </div>
+        <div class="modal-content">
+            <div id="taskOptions"></div>
+            <button class="btn btn-success full-width-btn" id="saveTaskBtn" onclick="saveTaskSelection()">選擇完畢</button>
+        </div>
+    </div>
+
+    <script>
+        // 替換為你的 Google Apps Script 網址
+        const API_URL = 'https://script.google.com/macros/s/AKfycbw3D33oEUKPzin61XiQn2_FgL0KY5ftdfw4CQ84kc3PQxDl2En-oXM25BPzhABXMfK0/exec';
+        const SYSTEM_PASSWORD = '415841582uiiojii';
+
+        // --- 核心資料設定 ---
+        const SUBJECTS = {
+            low: ['國語', '數學', '其他', '考試', '額外評卷', '請假', '校師註記'],
+            high: ['國語', '數學', '自然', '社會', '英文', '其他', '考試', '額外評卷', '請假', '校師註記']
+        };
+
+        const TASKS = {
+            '國語': ['習作', '圈詞', '生字造詞', '造句', '練習本', '訂正', '練習卷', '作文', '學習單', '預習單', '其他'],
+            '數學': ['習作', '數練', '練習卷', '訂正', '其他'],
+            '自然': ['習作', '練習卷', '其他'],
+            '社會': ['習作', '練習卷', '其他'],
+            '英文': ['習作', '練習卷', '其他'],
+            '其他': ['週記', '閱讀心得', '其他'],
+            '額外評卷': ['評量', '考卷', '心智圖', '其他'],
+            '請假': ['病假', '事假', '其他'],
+            '校師註記': ['通知單', '注意事項', '個人在校表現', '考卷簽名', '其他'] 
+        };
+
+        let appData = {
+            currentMode: 'main', 
+            main: { school: '', className: '', teacher: '', grade: 'low', students: [] },
+            sub: { school: '', className: '', teacher: '', grade: 'low', students: [], isActive: false }
+        };
+        
+        let records = {}; 
+        let currentDate = '';
+        let currentStudentId = null;
+        let currentSubject = '';
+        let viewMode = 'table'; 
+        let currentSort = { key: 'rollNo', dir: 'asc' }; 
+        let isBulkAssign = false; 
+        let currentFontSize = 16; 
+        let saveTimeout = null;
+
+        // UI Helpers
+        function showLoading(text = '與雲端同步中...') { 
+            document.getElementById('loadingText').innerText = text;
+            document.getElementById('loadingOverlay').style.display = 'flex'; 
+        }
+        function hideLoading() { 
+            document.getElementById('loadingOverlay').style.display = 'none'; 
+        }
+        function setSyncStatus(text, type='info') {
+            const el = document.getElementById('syncStatus');
+            el.style.display = 'inline-block';
+            el.innerText = text;
+            if(type==='error') el.style.background = 'rgba(231,76,60,0.8)';
+            else if(type==='success') el.style.background = 'rgba(46,204,113,0.8)';
+            else el.style.background = 'rgba(0,0,0,0.2)';
+            
+            if(type==='success') setTimeout(() => { el.style.display = 'none'; }, 2000);
+        }
+
+        // --- 密碼鎖控制 ---
+        window.onload = function() {
+            if(sessionStorage.getItem('isUnlocked') === 'true') {
+                document.getElementById('loginOverlay').style.display = 'none';
+                init();
+            } else {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('passwordInput').focus();
+            }
+        };
+
+        function checkPassword() {
+            const pwd = document.getElementById('passwordInput').value;
+            if (pwd === SYSTEM_PASSWORD) {
+                document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('loginOverlay').style.display = 'none';
+                sessionStorage.setItem('isUnlocked', 'true');
+                init();
+            } else {
+                document.getElementById('pwdError').style.display = 'block';
+                document.getElementById('passwordInput').value = '';
+                document.getElementById('passwordInput').focus();
+            }
+        }
+
+        // --- 初始化應用程式 ---
+        async function init() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            currentDate = `${yyyy}-${mm}-${dd}`;
+            document.getElementById('datePicker').value = currentDate;
+
+            const storedFontSize = localStorage.getItem('classManagerFontSize');
+            if (storedFontSize) {
+                currentFontSize = parseInt(storedFontSize, 10);
+                document.documentElement.style.fontSize = currentFontSize + 'px';
+            }
+
+            // 【雲端讀取】向 Apps Script 請求最新資料
+            showLoading('正在從雲端載入資料...');
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                if (data.appData) {
+                    let parsed = JSON.parse(data.appData);
+                    if (!parsed.main) {
+                        appData.main.grade = parsed.grade || 'low';
+                        appData.main.students = parsed.students || [];
+                    } else {
+                        appData = parsed;
+                    }
+                    // 防呆：強制修補遺失的物件結構
+                    if (!appData.main) appData.main = { school: '', className: '', teacher: '', grade: 'low', students: [] };
+                    if (!appData.sub) appData.sub = { school: '', className: '', teacher: '', grade: 'low', students: [], isActive: false };
+                    if (!appData.currentMode) appData.currentMode = 'main';
+                }
+                if (data.records) {
+                    let parsedRecords = JSON.parse(data.records);
+                    for (let date in parsedRecords) {
+                        if (parsedRecords[date] && !parsedRecords[date].main && !parsedRecords[date].sub) {
+                            parsedRecords[date] = { main: parsedRecords[date], sub: {} };
+                        }
+                        if (!parsedRecords[date].main) parsedRecords[date].main = {};
+                        if (!parsedRecords[date].sub) parsedRecords[date].sub = {};
+                    }
+                    records = parsedRecords;
+                }
+            } catch (err) {
+                console.error(err);
+                alert("無法連線至 Google 雲端！\n1. 請檢查您的網路狀態。\n2. 請確認 Apps Script 網址與部署權限是否正確。");
+            }
+            hideLoading();
+
+            document.getElementById('datePicker').addEventListener('change', (e) => {
+                currentDate = e.target.value;
+                renderClassToggle();
+                renderViews();
+            });
+
+            updateHeaderTheme();
+            renderClassToggle();
+            renderViews();
+        }
+
+        // 【雲端儲存】儲存全域設定 (阻斷式)
+        async function saveAppData() {
+            showLoading('儲存設定至雲端...');
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ key: 'appData', value: JSON.stringify(appData) }),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+                });
+            } catch (err) {
+                alert('上傳至雲端失敗，請檢查網路！');
+            }
+            hideLoading();
+        }
+
+        // 【雲端儲存】非同步背景儲存作業紀錄 (不阻斷 UI)
+        function queueSaveRecords() {
+            clearTimeout(saveTimeout);
+            setSyncStatus('🔄 同步中...');
+            
+            saveTimeout = setTimeout(async () => {
+                try {
+                    await fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ key: 'records', value: JSON.stringify(records) }),
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                    });
+                    setSyncStatus('✅ 已同步至雲端', 'success');
+                } catch (err) {
+                    setSyncStatus('❌ 同步失敗，請重整', 'error');
+                }
+            }, 1500); 
+        }
+
+        // --- 字體縮放控制 ---
+        function changeFontSize(delta) {
+            currentFontSize += delta;
+            if (currentFontSize > 28) currentFontSize = 28;
+            if (currentFontSize < 11) currentFontSize = 11;
+            document.documentElement.style.fontSize = currentFontSize + 'px';
+            localStorage.setItem('classManagerFontSize', currentFontSize);
+        }
+
+        // --- 主題與切換邏輯 ---
+        function updateHeaderTheme() {
+            const curClass = appData[appData.currentMode];
+            let title = '班級作業單';
+            
+            let parts = [];
+            if(curClass.school) parts.push(curClass.school);
+            if(curClass.className) parts.push(curClass.className);
+            let prefix = parts.length > 0 ? parts.join(' ') + ' ' : '';
+            let suffix = curClass.teacher ? ` - ${curClass.teacher}老師` : '';
+            title = `${prefix}班級作業單${suffix}`;
+
+            let modeBadge = appData.currentMode === 'sub' ? '<span style="background:#fff; color:var(--sub-class); padding:2px 8px; border-radius:12px; font-size:0.9rem; margin-left:10px;">代課中</span>' : '';
+            
+            document.getElementById('headerTitle').innerHTML = title + modeBadge;
+            
+            const isSub = appData.currentMode === 'sub';
+            const header = document.getElementById('mainHeader');
+            document.querySelectorAll('.modal-header, .th-dynamic').forEach(el => {
+                if (isSub) el.classList.add('header-sub', 'th-sub');
+                else el.classList.remove('header-sub', 'th-sub');
+            });
+            if (isSub) header.classList.add('header-sub');
+            else header.classList.remove('header-sub');
+        }
+
+        function renderClassToggle() {
+            const container = document.getElementById('classToggleContainer');
+            if (appData.sub.isActive) {
+                const isMain = appData.currentMode === 'main';
+                const btnText = isMain ? '切換至：代課班' : '切換至：原班';
+                const btnClass = isMain ? 'btn-sub' : 'btn-outline';
+                container.innerHTML = `<button class="btn ${btnClass}" onclick="toggleClassMode()">🔄 ${btnText}</button>`;
+            } else {
+                container.innerHTML = `<button class="btn btn-sub" onclick="openSubInitModal()">➕ 代課</button>`;
+            }
+        }
+
+        async function toggleClassMode() {
+            appData.currentMode = appData.currentMode === 'main' ? 'sub' : 'main';
+            await saveAppData();
+            updateHeaderTheme();
+            renderClassToggle();
+            renderViews();
+        }
+
+        // --- 代課班初始化 ---
+        function openSubInitModal() {
+            document.getElementById('subBatchNames').value = '';
+            document.getElementById('subInitModal').style.display = 'block';
+        }
+
+        async function createSubClass(withBatch) {
+            appData.sub.isActive = true;
+            appData.currentMode = 'sub';
+            
+            if (withBatch) {
+                const text = document.getElementById('subBatchNames').value;
+                const names = text.split('\n').map(n => n.trim()).filter(n => n);
+                appData.sub.students = [];
+                for (let i = 0; i < 30; i++) {
+                    if (i < names.length) {
+                        appData.sub.students.push({
+                            id: i, rollNo: i+1, school: '', className: '', name: names[i], engClassType: '資優', engClassInput: ''
+                        });
+                    }
+                }
+            }
+            
+            await saveAppData();
+            closeModal('subInitModal');
+            updateHeaderTheme();
+            renderClassToggle();
+            
+            if (!withBatch) {
+                openSettings(); 
+            } else {
+                renderViews();
+            }
+        }
+
+        async function closeSubClass() {
+            if(confirm('確定要結束代課並清除代課班設定嗎？\n(今日及過去的代課指派紀錄不會被刪除，但代課名單將被移除)')){
+                appData.sub = { school: '', className: '', teacher: '', grade: 'low', students: [], isActive: false };
+                appData.currentMode = 'main';
+                await saveAppData();
+                closeModal('settingsModal');
+                updateHeaderTheme();
+                renderClassToggle();
+                renderViews();
+            }
+        }
+
+        // --- 工具 ---
+        function getChineseUnits() {
+            let opts = '<option value="">選擇範圍</option>';
+            for(let i=1; i<=12; i++) opts += `<option value="L${i}">L${i}</option>`;
+            return opts;
+        }
+        function getMathUnits() {
+            let opts = '<option value="">選擇範圍</option>';
+            for(let i=1; i<=10; i++) opts += `<option value="L${i}">L${i}</option>`;
+            return opts;
+        }
+        function getSciSocUnits() {
+            let opts = '<option value="">選擇範圍</option>';
+            for(let i=1; i<=5; i++) {
+                for(let j=1; j<=4; j++) opts += `<option value="${i}-${j}">${i}-${j}</option>`;
+            }
+            return opts;
+        }
+        function getUnitHTML(subjectType) {
+            if (subjectType === '國語') return `<select class="unit-select">${getChineseUnits()}</select>`;
+            if (subjectType === '數學') return `<select class="unit-select">${getMathUnits()}</select>`;
+            if (subjectType === '自然' || subjectType === '社會') return `<select class="unit-select">${getSciSocUnits()}</select>`;
+            if (subjectType === '英文') return `<input type="text" class="unit-select custom-input" placeholder="自填範圍 (如 U1)">`;
+            return '';
+        }
+        function updateExtraUnit(selectEl) {
+            const subj = selectEl.value;
+            selectEl.nextElementSibling.innerHTML = getUnitHTML(subj);
+        }
+        function getEngClassStr(stu) {
+            return stu.engClassType === 'custom' ? (stu.engClassInput || '無') : (stu.engClassType || '無');
+        }
+
+        // --- 排序與視圖邏輯 ---
+        function toggleViewMode() {
+            viewMode = viewMode === 'table' ? 'grid' : 'table';
+            renderViews();
+        }
+
+        function sortTable(key) {
+            if (currentSort.key === key) {
+                currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.key = key;
+                currentSort.dir = 'asc';
+            }
+            renderViews();
+        }
+
+        function sortStudents(students) {
+            return students.slice().sort((a, b) => {
+                let valA, valB;
+                if(currentSort.key === 'rollNo') { valA = parseInt(a.rollNo) || 0; valB = parseInt(b.rollNo) || 0; } 
+                else if(currentSort.key === 'schoolClass') { valA = (a.school || '') + (a.className || ''); valB = (b.school || '') + (b.className || ''); } 
+                else if(currentSort.key === 'englishClass') { valA = getEngClassStr(a); valB = getEngClassStr(b); } 
+                else { return 0; }
+                
+                if (valA < valB) return currentSort.dir === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        function getSortIcon(key) { return currentSort.key !== key ? '↕' : (currentSort.dir === 'asc' ? '↓' : '↑'); }
+
+        function ensureDailyRecordsExist() {
+            if (!records[currentDate]) { records[currentDate] = { main: {}, sub: {} }; }
+        }
+
+        function renderViews() {
+            const curClass = appData[appData.currentMode];
+            const grid = document.getElementById('studentGrid');
+            const tableContainer = document.getElementById('studentTableContainer');
+
+            if(curClass.students.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:#666;">尚未設定學生名單，請點擊上方「設定」</div>';
+                grid.style.display = 'block';
+                tableContainer.style.display = 'none';
+                return;
+            }
+
+            ensureDailyRecordsExist();
+            const sortedStudents = sortStudents(curClass.students);
+
+            if (viewMode === 'grid') {
+                tableContainer.style.display = 'none';
+                grid.style.display = 'grid';
+                renderGridHTML(sortedStudents);
+            } else {
+                grid.style.display = 'none';
+                tableContainer.style.display = 'block';
+                renderTableHTML(sortedStudents);
+            }
+        }
+
+        function renderGridHTML(sortedStudents) {
+            const grid = document.getElementById('studentGrid');
+            grid.innerHTML = '';
+            const mode = appData.currentMode;
+            
+            sortedStudents.forEach(stu => {
+                const allTasks = records[currentDate][mode][stu.id] || [];
+                const stuTasksSchool = allTasks.filter(t => t.subject !== '校師註記' && t.subject !== '請假' && t.subject !== '評卷指派💪' && t.subject !== '額外評卷');
+                const stuTasksExtra = allTasks.filter(t => t.subject === '評卷指派💪' || t.subject === '額外評卷');
+                const noteTasks = allTasks.filter(t => t.subject === '校師註記');
+                const leaveTasks = allTasks.filter(t => t.subject === '請假');
+
+                const total1 = stuTasksSchool.length;
+                const done1 = stuTasksSchool.filter(t => t.isDone).length;
+                let pct1 = total1 > 0 ? (done1 / total1) * 100 : 0;
+
+                const total2 = stuTasksExtra.length;
+                const done2 = stuTasksExtra.filter(t => t.isDone).length;
+                let pct2 = total2 > 0 ? (done2 / total2) * 100 : 0;
+
+                let statusText1 = total1 > 0 ? `學校: ${done1}/${total1}` : '學校: 無';
+                let statusText2 = total2 > 0 ? `評卷: ${done2}/${total2}` : '評卷: 無';
+                let statusText = `<div style="font-size:0.75rem; margin-top:3px; color:#666;">${statusText1} | ${statusText2}</div>`;
+                
+                if (total1 === 0 && total2 === 0 && (noteTasks.length > 0 || leaveTasks.length > 0)) {
+                    statusText = `<div style="font-size:0.75rem; margin-top:3px; color:var(--note); font-weight:bold;">僅有註記/請假</div>`;
+                }
+
+                let examIconHtml = '';
+                const exams = stuTasksSchool.filter(t => t.isExam);
+                if (exams.length > 0) {
+                    const allExamsDone = exams.every(t => t.isDone);
+                    examIconHtml = allExamsDone ? '<span class="exam-icon">⭐</span>' : '<span class="exam-icon">🚨</span>';
+                }
+                let noteIconHtml = (noteTasks.length > 0 || leaveTasks.length > 0) ? '<span class="note-icon">🏫</span>' : '';
+
+                const card = document.createElement('div');
+                card.className = 'student-card';
+                
+                let bgStyle = '#ffffff';
+                if (total1 > 0 || total2 > 0) {
+                    bgStyle = `linear-gradient(to right, #dcfce7 ${pct1}%, transparent ${pct1}%) 0 0 / 100% 50% no-repeat,
+                               linear-gradient(to right, #e0e7ff ${pct2}%, transparent ${pct2}%) 0 100% / 100% 50% no-repeat,
+                               #ffffff`;
+                }
+                card.style.background = bgStyle;
+
+                let allDone = true;
+                if (total1 > 0 && pct1 < 100) allDone = false;
+                if (total2 > 0 && pct2 < 100) allDone = false;
+                if (total1 === 0 && total2 === 0) allDone = false;
+                card.style.borderColor = allDone ? 'var(--success)' : 'var(--border)';
+
+                card.innerHTML = `
+                    <div class="student-name">${noteIconHtml} ${examIconHtml} ${stu.name}</div>
+                    <div class="progress-text">${stu.school||''} ${stu.className||''}</div>
+                    ${statusText}
+                `;
+                card.onclick = () => openStudentDetail(stu.id, stu.name);
+                grid.appendChild(card);
+            });
+        }
+
+        function renderTableHTML(sortedStudents) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            const mode = appData.currentMode;
+            
+            document.getElementById('th-rollNo').innerText = `序號 ${getSortIcon('rollNo')}`;
+            document.getElementById('th-schoolClass').innerText = `學校-班級 ${getSortIcon('schoolClass')}`;
+            document.getElementById('th-englishClass').innerText = `美語班級 ${getSortIcon('englishClass')}`;
+
+            sortedStudents.forEach(stu => {
+                const allTasks = records[currentDate][mode][stu.id] || [];
+                const stuTasksSchool = allTasks.filter(t => t.subject !== '校師註記' && t.subject !== '請假' && t.subject !== '評卷指派💪' && t.subject !== '額外評卷');
+                const stuTasksExtra = allTasks.filter(t => t.subject === '評卷指派💪' || t.subject === '額外評卷');
+                const noteTasks = allTasks.filter(t => t.subject === '校師註記');
+                const leaveTasks = allTasks.filter(t => t.subject === '請假');
+
+                const total1 = stuTasksSchool.length;
+                const done1 = stuTasksSchool.filter(t => t.isDone).length;
+                const total2 = stuTasksExtra.length;
+                const done2 = stuTasksExtra.filter(t => t.isDone).length;
+                
+                let icon1 = '';
+                const exams1 = stuTasksSchool.filter(t => t.isExam);
+                if (exams1.length > 0) icon1 = exams1.every(t => t.isDone) ? '⭐' : '🚨';
+
+                let html1 = total1 > 0 ? `<div style="font-size:0.9rem;">學校: <b style="color:${done1===total1?'var(--success)':'inherit'}">${done1}/${total1}</b> ${icon1}</div>` : '';
+                let html2 = total2 > 0 ? `<div style="font-size:0.9rem;">評卷: <b style="color:${done2===total2?'var(--extra)':'inherit'}">${done2}/${total2}</b></div>` : '';
+                
+                let statusText = html1 + html2;
+                if (total1 === 0 && total2 === 0) {
+                    statusText = (noteTasks.length > 0 || leaveTasks.length > 0) ? '<span style="color:var(--note); font-weight:bold;">僅註記/假單</span>' : '<span style="color:#999;">無</span>';
+                }
+
+                let badgeHtml = '';
+                if (allTasks.length === 0) {
+                    badgeHtml = '<span style="color:#ccc;">無指派項目</span>';
+                } else {
+                    let badges = [];
+                    stuTasksSchool.forEach(t => {
+                        let badgeClass = t.isDone ? 'badge badge-done' : 'badge badge-undone';
+                        let mark = t.isDone ? '☑️' : '☐';
+                        badges.push(`<span class="${badgeClass}">${mark} ${t.subject}-${t.taskName}</span>`);
+                    });
+                    stuTasksExtra.forEach(t => {
+                        let badgeClass = t.isDone ? 'badge badge-extra-done' : 'badge badge-extra';
+                        let mark = t.isDone ? '☑️' : '☐';
+                        let prefixStr = t.subject === '評卷指派💪' ? '全班💪' : '額外💪';
+                        badges.push(`<span class="${badgeClass}">${mark} ${prefixStr}${t.taskName}</span>`);
+                    });
+                    leaveTasks.forEach(t => {
+                        badges.push(`<span class="badge badge-leave">🛑 ${t.taskName}</span>`);
+                    });
+                    noteTasks.forEach(t => {
+                        badges.push(`<span class="badge badge-note">🏫 ${t.taskName}</span>`);
+                    });
+                    badgeHtml = `<div class="badge-list">${badges.join('')}</div>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align:center;">${stu.rollNo || '-'}</td>
+                    <td>${stu.school || ''} ${stu.className || ''}</td>
+                    <td class="clickable-name" onclick="openStudentDetail(${stu.id}, '${stu.name}')">${stu.name}</td>
+                    <td>${getEngClassStr(stu)}</td>
+                    <td>${statusText}</td>
+                    <td>${badgeHtml}</td>
+                    <td><button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.9rem;" onclick="openStudentDetail(${stu.id}, '${stu.name}')">編輯</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- 設定 Modal ---
+        function openSettings() {
+            const curClass = appData[appData.currentMode];
+            document.getElementById('setting_school').value = curClass.school || '';
+            document.getElementById('setting_class').value = curClass.className || '';
+            document.getElementById('setting_teacher').value = curClass.teacher || '';
+            document.getElementById('gradeSelect').value = curClass.grade || 'low';
+            
+            const container = document.getElementById('studentInputs');
+            container.innerHTML = '';
+            
+            for(let i=0; i<30; i++) {
+                const stu = curClass.students[i] || { name:'', school:'', className:'', engClassType:'資優', engClassInput:'', rollNo: '' };
+                const displayCustom = stu.engClassType === 'custom' ? 'block' : 'none';
+                
+                container.innerHTML += `
+                    <div class="student-setting-row">
+                        <span class="row-index">${i+1}</span>
+                        <input type="number" id="stu_roll_${i}" value="${stu.rollNo || ''}" placeholder="序號" title="點名單序號">
+                        <input type="text" id="stu_school_${i}" value="${stu.school || ''}" placeholder="學校(如:OO)" title="學校">
+                        <input type="text" id="stu_class_${i}" value="${stu.className || ''}" placeholder="班級(如:3-1)" title="班級">
+                        <input type="text" id="stu_name_${i}" value="${stu.name || ''}" placeholder="學生姓名" title="姓名">
+                        <select id="stu_engType_${i}" onchange="toggleEngInputSettings(${i})" title="美語班級">
+                            <option value="資優" ${stu.engClassType==='資優'?'selected':''}>資優</option>
+                            <option value="custom" ${stu.engClassType==='custom'?'selected':''}>手動輸入</option>
+                        </select>
+                        <input type="text" id="stu_engInput_${i}" value="${stu.engClassInput || ''}" placeholder="輸入美語班級" style="display: ${displayCustom};" title="自訂美語班級">
+                    </div>
+                `;
+            }
+
+            document.getElementById('endSubBtn').style.display = appData.currentMode === 'sub' ? 'block' : 'none';
+            document.getElementById('settingsModal').style.display = 'block';
+        }
+
+        function toggleEngInputSettings(index) {
+            const select = document.getElementById(`stu_engType_${index}`);
+            const input = document.getElementById(`stu_engInput_${index}`);
+            input.style.display = select.value === 'custom' ? 'block' : 'none';
+        }
+
+        async function saveSettings() {
+            const curClass = appData[appData.currentMode];
+            curClass.school = document.getElementById('setting_school').value.trim();
+            curClass.className = document.getElementById('setting_class').value.trim();
+            curClass.teacher = document.getElementById('setting_teacher').value.trim();
+            curClass.grade = document.getElementById('gradeSelect').value;
+            
+            curClass.students = [];
+            for(let i=0; i<30; i++) {
+                const name = document.getElementById(`stu_name_${i}`).value.trim();
+                if(name) {
+                    curClass.students.push({
+                        id: i,
+                        rollNo: document.getElementById(`stu_roll_${i}`).value.trim(),
+                        school: document.getElementById(`stu_school_${i}`).value.trim(),
+                        className: document.getElementById(`stu_class_${i}`).value.trim(),
+                        name: name,
+                        engClassType: document.getElementById(`stu_engType_${i}`).value,
+                        engClassInput: document.getElementById(`stu_engInput_${i}`).value.trim()
+                    });
+                }
+            }
+            await saveAppData();
+            closeModal('settingsModal');
+            updateHeaderTheme();
+            renderViews();
+        }
+
+        function clearStudentList() {
+            if (confirm("警告：確定要清空學生名單嗎？")) {
+                for(let i=0; i<30; i++) {
+                    document.getElementById(`stu_roll_${i}`).value = '';
+                    document.getElementById(`stu_school_${i}`).value = '';
+                    document.getElementById(`stu_class_${i}`).value = '';
+                    document.getElementById(`stu_name_${i}`).value = '';
+                    document.getElementById(`stu_engType_${i}`).value = '資優';
+                    document.getElementById(`stu_engInput_${i}`).value = '';
+                    toggleEngInputSettings(i);
+                }
+            }
+        }
+
+        // --- 全班統一指派 ---
+        function openBulkTaskSelect() {
+            const curClass = appData[appData.currentMode];
+            if (curClass.students.length === 0) {
+                alert('目前名單為空，請先至「設定」新增學生！');
+                return;
+            }
+            isBulkAssign = true;
+            currentSubject = '評卷指派💪';
+            document.getElementById('currentSubjectTitle').innerText = `全班統一指派：評卷與測驗`;
+            
+            const optionsDiv = document.getElementById('taskOptions');
+            optionsDiv.innerHTML = '';
+            
+            const tasks = TASKS['額外評卷'];
+            tasks.forEach(task => {
+                const row = document.createElement('div');
+                row.className = 'task-row';
+                if (task === '評量' || task === '考卷') {
+                    const subjs = curClass.grade === 'low' ? ['國語', '數學'] : ['國語', '數學', '自然', '社會', '英文'];
+                    let subjOpts = subjs.map(s => `<option value="${s}">${s}</option>`).join('');
+                    row.innerHTML = `
+                        <div class="task-main">
+                            <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                        </div>
+                        <div class="task-details" style="display:none;">
+                            <select class="extra-subj" onchange="updateExtraUnit(this)">${subjOpts}</select>
+                            <span class="extra-unit-container">${getUnitHTML(subjs[0])}</span>
+                        </div>
+                    `;
+                } else if (task === '心智圖' || task === '其他') {
+                    row.innerHTML = `
+                        <div class="task-main">
+                            <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                        </div>
+                        <div class="task-details" style="display:none; width: 100%;">
+                            <input type="text" class="custom-input task-extra-input" placeholder="請輸入內容/範圍" style="width: 100%;">
+                        </div>
+                    `;
+                }
+                optionsDiv.appendChild(row);
+            });
+            document.getElementById('saveTaskBtn').innerText = `確認全班指派 (${curClass.students.length}人)`;
+            document.getElementById('taskSelectModal').style.display = 'block';
+        }
+
+        // --- 學生詳細紀錄 ---
+        function openStudentDetail(stuId, stuName) {
+            isBulkAssign = false;
+            currentStudentId = stuId;
+            document.getElementById('currentStudentName').innerText = `${stuName} 的紀錄本`;
+            
+            const tagsDiv = document.getElementById('subjectTags');
+            tagsDiv.innerHTML = '';
+            const curClass = appData[appData.currentMode];
+            const subjects = SUBJECTS[curClass.grade];
+            subjects.forEach(sub => {
+                const tag = document.createElement('div');
+                tag.className = 'subject-tag';
+                
+                if (sub === '考試') { tag.innerText = `📝 ${sub}`; tag.style.background = '#fef08a'; tag.style.fontWeight = 'bold'; } 
+                else if (sub === '請假') { tag.innerText = `🛑 ${sub}`; tag.style.background = '#f87171'; tag.style.color = 'white'; tag.style.fontWeight = 'bold'; } 
+                else if (sub === '校師註記') { tag.innerText = `🏫 ${sub}`; tag.style.background = 'var(--note)'; tag.style.color = 'white'; tag.style.fontWeight = 'bold'; } 
+                else if (sub === '額外評卷') { tag.innerText = `💪${sub}`; tag.style.background = '#e0e7ff'; tag.style.color = 'var(--extra)'; tag.style.fontWeight = 'bold'; } 
+                else { tag.innerText = `＋ ${sub}`; }
+                
+                tag.onclick = () => openTaskSelect(sub);
+                tagsDiv.appendChild(tag);
+            });
+
+            renderTaskList();
+            document.getElementById('studentDetailModal').style.display = 'block';
+        }
+
+        function renderTaskList() {
+            const listDiv = document.getElementById('taskList');
+            listDiv.innerHTML = '';
+            const mode = appData.currentMode;
+            ensureDailyRecordsExist();
+            const stuTasks = records[currentDate][mode][currentStudentId] || [];
+
+            if(stuTasks.length === 0) {
+                listDiv.innerHTML = '<p style="color:#999; text-align:center;">今日尚無指派內容</p>';
+                renderViews(); 
+                return;
+            }
+
+            stuTasks.forEach((task, index) => {
+                const item = document.createElement('div');
+                item.className = 'task-item';
+                
+                const checkMark = task.isDone ? '☑️' : '';
+                const btnClass = task.isDone ? 'check-btn checked' : 'check-btn';
+                let specialBadge = '';
+                
+                if (task.subject === '評卷指派💪') specialBadge = '<span class="task-exam-badge" style="background:var(--extra);">💪全班評卷</span>';
+                else if (task.subject === '額外評卷') specialBadge = '<span class="task-exam-badge" style="background:var(--extra);">💪個別評卷</span>';
+                else if (task.isExam) specialBadge = '<span class="task-exam-badge">考試</span>';
+                else if (task.subject === '請假') specialBadge = '<span class="task-exam-badge" style="background:#f87171;">假單</span>';
+                else if (task.subject === '校師註記') specialBadge = '<span class="task-exam-badge" style="background:var(--note);">註記</span>';
+
+                item.innerHTML = `
+                    <div class="task-info">
+                        <div class="task-subject">${task.subject} ${specialBadge}</div>
+                        <div class="task-name">${task.taskName}</div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="delete-btn" onclick="deleteTask(${index})" title="刪除此項作業">🗑️</button>
+                        <div class="${btnClass}" onclick="toggleTask(${index})">${checkMark}</div>
+                    </div>
+                `;
+                listDiv.appendChild(item);
+            });
+            renderViews(); 
+        }
+
+        function toggleTask(taskIndex) {
+            const mode = appData.currentMode;
+            records[currentDate][mode][currentStudentId][taskIndex].isDone = !records[currentDate][mode][currentStudentId][taskIndex].isDone;
+            renderTaskList();
+            queueSaveRecords(); 
+        }
+
+        // --- 刪除單一作業 ---
+        function deleteTask(taskIndex) {
+            if (confirm("確定要刪除這項作業嗎？ (注意：刪除後無法復原)")) {
+                const mode = appData.currentMode;
+                records[currentDate][mode][currentStudentId].splice(taskIndex, 1);
+                renderTaskList();
+                queueSaveRecords(); // 觸發非同步儲存
+            }
+        }
+
+        function toggleDetails(checkbox) {
+            const details = checkbox.closest('.task-row').querySelector('.task-details');
+            if (details) details.style.display = checkbox.checked ? 'flex' : 'none';
+        }
+        
+        function toggleStdInput(selectEl) {
+            const input = selectEl.nextElementSibling;
+            if (selectEl.value === "頁數" || selectEl.value === "第_課") {
+                input.style.display = 'block';
+                input.focus();
+            } else {
+                input.style.display = 'none';
+                input.value = '';
+            }
+        }
+
+        function openTaskSelect(subject) {
+            isBulkAssign = false;
+            currentSubject = subject;
+            document.getElementById('currentSubjectTitle').innerText = `選擇「${subject}」項目`;
+            const optionsDiv = document.getElementById('taskOptions');
+            optionsDiv.innerHTML = '';
+            const curClass = appData[appData.currentMode];
+
+            if (subject === '考試') {
+                const examSubjects = curClass.grade === 'low' ? ['國語', '數學'] : ['國語', '數學', '自然', '社會', '英文'];
+                examSubjects.forEach(exSub => {
+                    const row = document.createElement('div');
+                    row.className = 'task-row';
+                    let extra = `<label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="exam-dictation" style="width:18px;height:18px;">聽寫</label>`;
+                    row.innerHTML = `
+                        <div class="task-main">
+                            <input type="checkbox" value="${exSub}" class="task-checkbox exam-checkbox" onchange="toggleDetails(this)"> 考 ${exSub}
+                        </div>
+                        <div class="task-details" style="display:none;">
+                            ${getUnitHTML(exSub)}
+                            ${exSub === '國語' ? extra : ''}
+                        </div>
+                    `;
+                    optionsDiv.appendChild(row);
+                });
+            } else if (subject === '額外評卷') {
+                const tasks = TASKS[subject];
+                tasks.forEach(task => {
+                    const row = document.createElement('div');
+                    row.className = 'task-row';
+                    if (task === '評量' || task === '考卷') {
+                        const subjs = curClass.grade === 'low' ? ['國語', '數學'] : ['國語', '數學', '自然', '社會', '英文'];
+                        let subjOpts = subjs.map(s => `<option value="${s}">${s}</option>`).join('');
+                        row.innerHTML = `
+                            <div class="task-main">
+                                <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                            </div>
+                            <div class="task-details" style="display:none;">
+                                <select class="extra-subj" onchange="updateExtraUnit(this)">${subjOpts}</select>
+                                <span class="extra-unit-container">${getUnitHTML(subjs[0])}</span>
+                            </div>
+                        `;
+                    } else if (task === '心智圖' || task === '其他') {
+                        row.innerHTML = `
+                            <div class="task-main">
+                                <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                            </div>
+                            <div class="task-details" style="display:none; width: 100%;">
+                                <input type="text" class="custom-input task-extra-input" placeholder="請輸入內容/範圍" style="width: 100%;">
+                            </div>
+                        `;
+                    }
+                    optionsDiv.appendChild(row);
+                });
+            } else if (subject === '請假' || subject === '校師註記' || subject === '其他') {
+                const tasks = TASKS[subject] || [];
+                tasks.forEach(task => {
+                    const row = document.createElement('div');
+                    row.className = 'task-row';
+                    if (task === '其他' || task === '週記' || task === '閱讀心得') {
+                        let placeholderText = (subject === '請假') ? '請輸入假別事由' : '請輸入內容';
+                        row.innerHTML = `
+                            <div class="task-main">
+                                <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                            </div>
+                            <div class="task-details" style="display:none; width: 100%;">
+                                <input type="text" class="custom-input task-extra-input" placeholder="${placeholderText}" style="width: 100%;">
+                            </div>
+                        `;
+                    } else {
+                        row.innerHTML = `
+                            <div class="task-main">
+                                <input type="checkbox" value="${task}" class="task-checkbox std-task-checkbox"> ${task}
+                            </div>
+                        `;
+                    }
+                    optionsDiv.appendChild(row);
+                });
+            } else {
+                const tasks = TASKS[subject] || [];
+                tasks.forEach(task => {
+                    const row = document.createElement('div');
+                    row.className = 'task-row';
+                    if (task === '其他' || task === '作文') {
+                        row.innerHTML = `
+                            <div class="task-main"><input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}</div>
+                            <div class="task-details" style="display:none; width: 100%;"><input type="text" class="custom-input task-extra-input" placeholder="請輸入內容" style="width: 100%;"></div>
+                        `;
+                    } else if (task === '練習卷' || task === '學習單' || task === '預習單') {
+                        row.innerHTML = `
+                            <div class="task-main"><input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}</div>
+                            <div class="task-details" style="display:none;">${getUnitHTML(subject === '國語' ? '國語' : subject)}</div>
+                        `;
+                    } else {
+                        let extraOption = (task === '訂正') ? '<option value="聯絡簿">聯絡簿</option>' : '';
+                        row.innerHTML = `
+                            <div class="task-main"><input type="checkbox" value="${task}" class="task-checkbox std-task-checkbox" onchange="toggleDetails(this)"> ${task}</div>
+                            <div class="task-details" style="display:none;">
+                                <select class="detail-type" onchange="toggleStdInput(this)">
+                                    <option value="">無補充</option>${extraOption}
+                                    <option value="頁數">頁數</option><option value="第_課">第_課</option>
+                                </select>
+                                <input type="text" class="detail-input" placeholder="例如: 10-12" style="display:none; width: 120px;">
+                            </div>
+                        `;
+                    }
+                    optionsDiv.appendChild(row);
+                });
+            }
+            document.getElementById('saveTaskBtn').innerText = '選擇完畢';
+            document.getElementById('taskSelectModal').style.display = 'block';
+        }
+
+        function saveTaskSelection() {
+            const mode = appData.currentMode;
+            ensureDailyRecordsExist();
+            let newTasks = [];
+            const rows = document.querySelectorAll('.task-row');
+            
+            rows.forEach(row => {
+                const checkbox = row.querySelector('.task-checkbox');
+                if (checkbox && checkbox.checked) {
+                    if (currentSubject === '考試') {
+                        const exSub = checkbox.value; 
+                        const unitSelect = row.querySelector('.unit-select');
+                        let unit = unitSelect ? unitSelect.value.trim() : '';
+                        let dictationStr = '';
+                        const dictCheckbox = row.querySelector('.exam-dictation');
+                        if (dictCheckbox && dictCheckbox.checked) dictationStr = '聽寫';
+
+                        let nameParts = [];
+                        if (unit) nameParts.push(unit);
+                        if (dictationStr) nameParts.push(dictationStr);
+                        
+                        let taskName = `${exSub}`;
+                        if (nameParts.length > 0) taskName += ` (${nameParts.join(', ')})`;
+                        
+                        newTasks.push({ name: taskName, isExam: true });
+                    } else if (currentSubject === '評卷指派💪' || currentSubject === '額外評卷') {
+                        const task = checkbox.value;
+                        if (task === '評量' || task === '考卷') {
+                            const subjSelect = row.querySelector('.extra-subj');
+                            const unitSelect = row.querySelector('.extra-unit-container .unit-select');
+                            let subj = subjSelect ? subjSelect.value : '';
+                            let unit = unitSelect ? unitSelect.value.trim() : '';
+                            let name = `${task}-${subj}`;
+                            if (unit) name += ` (${unit})`;
+                            newTasks.push({ name: name, isExam: false });
+                        } else {
+                            const input = row.querySelector('.task-extra-input').value.trim();
+                            let name = input ? `${task} (${input})` : task;
+                            newTasks.push({ name: name, isExam: false });
+                        }
+                    } else {
+                        const task = checkbox.value;
+                        if (task === '其他' || task === '作文' || task === '週記' || task === '閱讀心得') {
+                            const input = row.querySelector('.task-extra-input').value.trim();
+                            let name = input ? `${task} (${input})` : task;
+                            newTasks.push({ name: name, isExam: false });
+                        } else if (task === '練習卷' || task === '學習單' || task === '預習單') {
+                            const unitSelect = row.querySelector('.unit-select');
+                            let unit = unitSelect ? unitSelect.value.trim() : '';
+                            let name = unit ? `${task} (${unit})` : task;
+                            newTasks.push({ name: name, isExam: false });
+                        } else {
+                            const detailTypeEl = row.querySelector('.detail-type');
+                            const detailInputEl = row.querySelector('.detail-input');
+                            let name = task;
+                            if (detailTypeEl) {
+                                const detailType = detailTypeEl.value;
+                                let detailInput = '';
+                                if(detailInputEl) detailInput = detailInputEl.value.trim();
+                                if (detailType === '聯絡簿') name += ` (聯絡簿)`;
+                                else if (detailType && detailInput) {
+                                    if (detailType === '頁數') name += ` (p.${detailInput})`;
+                                    else name += ` (${detailType.replace('_', detailInput)})`; 
+                                }
+                            }
+                            newTasks.push({ name: name, isExam: false });
+                        }
+                    }
+                }
+            });
+
+            if (isBulkAssign) {
+                const curClass = appData[mode];
+                curClass.students.forEach((stu, index) => {
+                    if (!records[currentDate][mode][stu.id]) records[currentDate][mode][stu.id] = [];
+                    newTasks.forEach((t, tIndex) => {
+                        records[currentDate][mode][stu.id].push({
+                            id: Date.now() + Math.random() + index + tIndex,
+                            subject: currentSubject,
+                            taskName: t.name,
+                            isDone: false,
+                            isExam: t.isExam
+                        });
+                    });
+                });
+            } else {
+                if (!records[currentDate][mode][currentStudentId]) records[currentDate][mode][currentStudentId] = [];
+                newTasks.forEach((t, tIndex) => {
+                    records[currentDate][mode][currentStudentId].push({
+                        id: Date.now() + Math.random() + tIndex,
+                        subject: currentSubject,
+                        taskName: t.name,
+                        isDone: false,
+                        isExam: t.isExam
+                    });
+                });
+            }
+
+            closeModal('taskSelectModal');
+            queueSaveRecords(); 
+            
+            if (isBulkAssign) renderViews();
+            else renderTaskList();
+        }
+
+    </script>
+</body>
+</html>
+class_manager_online_locked_v3.html
+目前顯示的是「class_manager_online_locked_v3.html」。
