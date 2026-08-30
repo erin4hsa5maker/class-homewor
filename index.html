@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+html_content = r'''<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -127,7 +127,6 @@
         .student-setting-row .row-index { flex: 0 0 30px; min-width: 30px; font-weight: bold; color: #64748b; text-align: center; }
 
         .export-box { display:flex; flex-wrap: wrap; gap:10px; margin-top: 15px; background: #e2e8f0; padding: 15px; border-radius: 8px; align-items: center; }
-        .backup-box { display:flex; flex-wrap: wrap; gap:10px; margin-top: 10px; background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; align-items: center; }
 
         /* Student Detail Modal */
         .subject-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
@@ -140,8 +139,13 @@
         .task-subject { font-size: 0.85rem; color: #64748b; font-weight: bold; }
         .task-exam-badge { background: var(--warning); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px; }
         .task-name { font-size: 1.1rem; margin-top: 3px; }
-        .check-btn { width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 2px solid var(--border); background: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; }
+        
+        /* Task Action Buttons */
+        .task-actions { display: flex; gap: 8px; align-items: center; }
+        .check-btn { width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 2px solid var(--border); background: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; transition: all 0.2s ease; }
         .check-btn.checked { background: var(--success); border-color: var(--success); color: white; }
+        .delete-btn { width: 2.5rem; height: 2.5rem; border-radius: 8px; border: 1px solid var(--warning); background: white; color: var(--warning); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; transition: all 0.2s ease; }
+        .delete-btn:active { background: #fee2e2; transform: scale(0.9); }
 
         /* Task Select Form Elements */
         .task-row { display: flex; flex-direction: column; background: #f8fafc; padding: 0.8rem; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); }
@@ -989,7 +993,10 @@
                         <div class="task-subject">${task.subject} ${specialBadge}</div>
                         <div class="task-name">${task.taskName}</div>
                     </div>
-                    <div class="${btnClass}" onclick="toggleTask(${index})">${checkMark}</div>
+                    <div class="task-actions">
+                        <button class="delete-btn" onclick="deleteTask(${index})" title="刪除此項作業">🗑️</button>
+                        <div class="${btnClass}" onclick="toggleTask(${index})">${checkMark}</div>
+                    </div>
                 `;
                 listDiv.appendChild(item);
             });
@@ -1001,6 +1008,16 @@
             records[currentDate][mode][currentStudentId][taskIndex].isDone = !records[currentDate][mode][currentStudentId][taskIndex].isDone;
             renderTaskList();
             queueSaveRecords(); 
+        }
+
+        // --- 刪除單一作業 ---
+        function deleteTask(taskIndex) {
+            if (confirm("確定要刪除這項作業嗎？ (注意：刪除後無法復原)")) {
+                const mode = appData.currentMode;
+                records[currentDate][mode][currentStudentId].splice(taskIndex, 1);
+                renderTaskList();
+                queueSaveRecords(); // 【連線版】觸發非同步儲存
+            }
         }
 
         function toggleDetails(checkbox) {
@@ -1239,4 +1256,9 @@
 
     </script>
 </body>
-</html>
+</html>'''
+
+with open('class_manager_online_locked_v2.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+
+print("[file-tag: class_manager_online_locked_v2.html]")
