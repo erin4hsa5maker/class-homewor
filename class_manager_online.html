@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>班級作業單 (線上同步版)</title>
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --success: #2ECC71;
+            --bg: #F5F7FA;
+            --card-bg: #FFFFFF;
+            --text: #333333;
+            --border: #E4E7EB;
+            --warning: #E74C3C;
+            --star: #F1C40F;
+            --note: #3b82f6;
+            --sub-class: #8e44ad;
+            --extra: #8b5cf6;
+        }
+        html { font-size: 16px; } 
+        * { box-sizing: border-box; font-family: "Helvetica Neue", Helvetica, "PingFang TC", "LiHei Pro", "Microsoft JhengHei", sans-serif; }
+        body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); }
+        
+        /* Loading Overlay */
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 9999;
+            display: none; justify-content: center; align-items: center;
+            flex-direction: column; font-size: 1.5rem; font-weight: bold; color: var(--primary);
+        }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid var(--primary);
+            border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #syncStatus { font-size: 0.9rem; margin-left: 10px; font-weight: normal; color: #fff; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 10px; }
+
+        /* Header & Top Bar */
+        header { background: var(--primary); color: white; padding: 1rem; text-align: center; position: sticky; top: 0; z-index: 10; font-size: 1.2rem; font-weight: bold; transition: background 0.3s; display: flex; justify-content: center; align-items: center; gap: 10px;}
+        .header-sub { background: var(--sub-class) !important; }
+        
+        .controls { padding: 0.6rem 1rem; display: flex; justify-content: space-between; align-items: center; background: white; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;}
+        .controls-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .controls input[type="date"] { padding: 0.5rem; border: 1px solid var(--border); border-radius: 5px; font-size: 1rem; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center;}
+        .btn { padding: 0.5rem 0.8rem; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; background: var(--primary); color: white; white-space: nowrap; }
+        .btn-success { background: var(--success); }
+        .btn-outline { background: white; color: var(--primary); border: 1px solid var(--primary); }
+        .btn-sub { background: white; color: var(--sub-class); border: 1px solid var(--sub-class); font-weight: bold;}
+        .btn-extra { background: var(--extra); color: white; border: 1px solid var(--extra); font-weight: bold; box-shadow: 0 2px 4px rgba(139,92,246,0.3); }
+        .font-btn { font-weight: bold; padding: 0.4rem 0.6rem; font-size: 1.1rem;}
+
+        /* Student Grid */
+        .student-grid { display: none; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: 10px; padding: 1rem; }
+        .student-card { 
+            background: var(--card-bg); 
+            padding: 0.8rem 0.3rem; 
+            text-align: center; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            cursor: pointer; 
+            border: 2px solid var(--border); 
+            font-size: 1.1rem; 
+            font-weight: bold;
+            overflow: hidden; 
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .student-card:active { opacity: 0.7; transform: scale(0.98); }
+        .student-name { margin-bottom: 5px; display: flex; justify-content: center; align-items: center; gap: 5px; flex-wrap: wrap;}
+        .progress-text { font-size: 0.8rem; font-weight: normal; color: #666; }
+        .exam-icon, .note-icon { font-size: 1.1rem; }
+
+        /* Table View */
+        .table-responsive { display: block; width: 100%; overflow-x: auto; padding: 1rem; }
+        .data-table { width: 100%; border-collapse: collapse; min-width: 900px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .data-table th, .data-table td { padding: 0.8rem; border: 1px solid var(--border); text-align: left; vertical-align: middle; }
+        .data-table th { background: var(--primary); color: white; cursor: pointer; user-select: none; white-space: nowrap; position: relative; transition: background 0.3s;}
+        .data-table th.th-sub { background: var(--sub-class); }
+        .data-table th:hover { opacity: 0.9; }
+        .data-table tr:nth-child(even) { background-color: #f8fafc; }
+        .data-table tr:hover { background-color: #f1f5f9; }
+        .clickable-name { font-weight: bold; color: var(--primary); cursor: pointer; text-decoration: underline; }
+
+        /* Task Badges in Table */
+        .badge-list { display: flex; flex-wrap: wrap; gap: 4px; }
+        .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem; white-space: nowrap; }
+        .badge-done { border: 1px solid var(--success); color: var(--success); background: #f0fdf4; }
+        .badge-undone { border: 1px solid #94a3b8; color: #64748b; background: white; }
+        .badge-leave { background: #f87171; color: white; border: 1px solid #f87171; }
+        .badge-note { background: var(--note); color: white; border: 1px solid var(--note); }
+        .badge-extra { border: 1px solid var(--extra); color: var(--extra); background: white; }
+        .badge-extra-done { border: 1px solid var(--extra); color: white; background: var(--extra); }
+
+        /* Modals */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); z-index: 100; overflow-y: auto; padding-bottom: 30px;}
+        .modal-header { background: var(--primary); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top:0; z-index: 101; transition: background 0.3s;}
+        .modal-header.header-sub { background: var(--sub-class); }
+        .modal-content { padding: 1rem; max-width: 900px; margin: 0 auto;}
+        .close-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+        /* Settings Form */
+        .settings-form label { display: block; margin-top: 15px; font-weight: bold; }
+        .settings-form select, .settings-form input[type="text"], .settings-form input[type="number"], .settings-form textarea { width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 5px; font-size: 1rem; }
+        
+        .student-setting-container { max-height: 50vh; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); padding: 10px; border-radius: 8px; background: #f8fafc; }
+        .student-setting-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: white; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid var(--border); }
+        .student-setting-row > * { flex: 1 1 80px; min-width: 70px; }
+        .student-setting-row .row-index { flex: 0 0 30px; min-width: 30px; font-weight: bold; color: #64748b; text-align: center; }
+
+        .export-box { display:flex; flex-wrap: wrap; gap:10px; margin-top: 15px; background: #e2e8f0; padding: 15px; border-radius: 8px; align-items: center; }
+
+        /* Student Detail Modal */
+        .subject-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .subject-tag { padding: 0.5rem 1rem; background: #e2e8f0; border-radius: 20px; cursor: pointer; font-size: 1rem; }
+        .subject-tag:active { background: #cbd5e1; }
+        
+        .task-list { margin-top: 20px; }
+        .task-item { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 0.8rem; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border); }
+        .task-info { flex-grow: 1; }
+        .task-subject { font-size: 0.85rem; color: #64748b; font-weight: bold; }
+        .task-exam-badge { background: var(--warning); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px; }
+        .task-name { font-size: 1.1rem; margin-top: 3px; }
+        .check-btn { width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 2px solid var(--border); background: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; }
+        .check-btn.checked { background: var(--success); border-color: var(--success); color: white; }
+
+        /* Task Select Form Elements */
+        .task-row { display: flex; flex-direction: column; background: #f8fafc; padding: 0.8rem; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); }
+        .task-main { display: flex; align-items: center; font-size: 1.1rem; gap: 10px; }
+        .task-main input[type="checkbox"] { width: 1.4rem; height: 1.4rem; }
+        .task-details { margin-top: 10px; padding-left: 32px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .task-details select, .task-details input[type="text"] { padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 1rem; }
+        .full-width-btn { width: 100%; margin-top: 20px; padding: 1rem; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <div id="loadingText">與雲端同步中...</div>
+    </div>
+
+    <header id="mainHeader">
+        <span id="headerTitle">班級作業單</span>
+        <span id="syncStatus" style="display:none;"></span>
+    </header>
+
+    <div class="controls">
+        <div class="controls-left">
+            <input type="date" id="datePicker">
+            <span id="classToggleContainer"></span>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-outline font-btn" onclick="changeFontSize(1)" title="放大字體">A+</button>
+            <button class="btn btn-outline font-btn" onclick="changeFontSize(-1)" title="縮小字體">A-</button>
+            <div style="width: 1px; height: 24px; background: var(--border); margin: 0 2px;"></div>
+            <button class="btn btn-extra" onclick="openBulkTaskSelect()">💪 全班評卷指派</button>
+            <div style="width: 1px; height: 24px; background: var(--border); margin: 0 2px;"></div>
+            <button class="btn btn-outline" onclick="toggleViewMode()">切換視圖</button>
+            <button class="btn btn-outline" onclick="openSettings()">⚙️ 設定</button>
+            <button class="btn btn-success" onclick="exportStudentList(true)">匯出今日</button>
+        </div>
+    </div>
+
+    <!-- Table View -->
+    <div class="table-responsive" id="studentTableContainer">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="th-dynamic" id="th-rollNo" onclick="sortTable('rollNo')" style="width: 70px;">序號 ↕</th>
+                    <th class="th-dynamic" id="th-schoolClass" onclick="sortTable('schoolClass')" style="width: 120px;">學校-班級 ↕</th>
+                    <th class="th-dynamic" style="width: 100px;">姓名</th>
+                    <th class="th-dynamic" id="th-englishClass" onclick="sortTable('englishClass')" style="width: 120px;">美語班級 ↕</th>
+                    <th class="th-dynamic" style="width: 120px;">狀態</th>
+                    <th class="th-dynamic">詳細指派內容</th>
+                    <th class="th-dynamic" style="width: 80px;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <!-- Grid View -->
+    <div class="student-grid" id="studentGrid"></div>
+
+    <!-- 設定 Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-header" id="settingsHeader">
+            <h3>班級設定 (雲端同步)</h3>
+            <button class="close-btn" onclick="closeModal('settingsModal')">✕</button>
+        </div>
+        <div class="modal-content settings-form">
+            <!-- 班級全域設定 -->
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top: 5px;">
+                <div style="flex:1; min-width:100px;"><label style="margin-top:0;">校別：</label><input type="text" id="setting_school" placeholder="例: 光華國小"></div>
+                <div style="flex:1; min-width:100px;"><label style="margin-top:0;">班別：</label><input type="text" id="setting_class" placeholder="例: 3-1"></div>
+                <div style="flex:1; min-width:100px;"><label style="margin-top:0;">老師名字：</label><input type="text" id="setting_teacher" placeholder="例: 王大明"></div>
+            </div>
+
+            <label>年級設定：</label>
+            <select id="gradeSelect" style="margin-bottom: 10px;">
+                <option value="low">低年級</option>
+                <option value="high">中高年級</option>
+            </select>
+            
+            <label>學生名單設定：</label>
+            <div class="student-setting-container" id="studentInputs"></div>
+            
+            <div class="export-box">
+                <span style="font-weight:bold; margin-right:auto;">輸出學生列表：</span>
+                <button class="btn btn-outline" onclick="exportStudentList(false)">📄 僅名單</button>
+                <button class="btn btn-outline" style="border-color:var(--success); color:var(--success);" onclick="exportStudentList(true)">📊 含作業進度</button>
+            </div>
+
+            <button class="btn btn-success full-width-btn" onclick="saveSettings()">儲存至雲端</button>
+            
+            <div style="display:flex; gap:10px; margin-top: 10px;">
+                <button class="btn btn-outline" style="color: var(--warning); border-color: var(--warning); flex:1; padding: 10px; font-size: 1rem;" onclick="clearStudentList()">🗑️ 清空名單</button>
+                <button id="endSubBtn" class="btn btn-outline" style="display:none; color: var(--sub-class); border-color: var(--sub-class); flex:1; padding: 10px; font-size: 1rem;" onclick="closeSubClass()">🛑 結束代課</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 代課初始化 Modal -->
+    <div id="subInitModal" class="modal">
+        <div class="modal-header header-sub">
+            <h3>新增代課班級</h3>
+            <button class="close-btn" onclick="closeModal('subInitModal')">✕</button>
+        </div>
+        <div class="modal-content settings-form">
+            <p style="color:#666; margin-top:0;">建立一個獨立的代課班級，資料與原班級完全分開。</p>
+            <label>批次載入名單 (選填)：</label>
+            <p style="font-size:0.85rem; color:#888; margin: 5px 0;">每行一個名字，將自動依序號排入，未輸入的欄位後續可再手動設定。</p>
+            <textarea id="subBatchNames" rows="8" placeholder="王小明&#10;陳大喵&#10;林小華..."></textarea>
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-success" style="flex:1; font-size: 1.1rem; padding: 12px;" onclick="createSubClass(true)">載入並建立</button>
+                <button class="btn btn-outline" style="flex:1; font-size: 1.1rem; padding: 12px;" onclick="createSubClass(false)">手動逐一設定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 學生作業 Modal -->
+    <div id="studentDetailModal" class="modal">
+        <div class="modal-header" id="detailHeader">
+            <h3 id="currentStudentName">學生姓名</h3>
+            <button class="close-btn" onclick="closeModal('studentDetailModal')">✕</button>
+        </div>
+        <div class="modal-content">
+            <h4 style="margin-top:0;">新增項目 (點選類別)</h4>
+            <div class="subject-tags" id="subjectTags"></div>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            <h4 style="margin-top:0;">已指派清單</h4>
+            <div class="task-list" id="taskList"></div>
+        </div>
+    </div>
+
+    <!-- 選擇作業項目 Modal -->
+    <div id="taskSelectModal" class="modal">
+        <div class="modal-header" id="taskHeader">
+            <h3 id="currentSubjectTitle">選擇作業</h3>
+            <button class="close-btn" onclick="closeModal('taskSelectModal')">✕</button>
+        </div>
+        <div class="modal-content">
+            <div id="taskOptions"></div>
+            <button class="btn btn-success full-width-btn" id="saveTaskBtn" onclick="saveTaskSelection()">選擇完畢</button>
+        </div>
+    </div>
+
+    <script>
+        // 🚨【非常重要】請將下方引號內的網址，替換成你的 Google Apps Script 網頁應用程式網址！
+        const API_URL = 'https://script.google.com/macros/s/AKfycbw3D33oEUKPzin61XiQn2_FgL0KY5ftdfw4CQ84kc3PQxDl2En-oXM25BPzhABXMfK0/exec';
+
+        // --- 核心資料設定 ---
+        const SUBJECTS = {
+            low: ['國語', '數學', '其他', '考試', '額外評卷', '請假', '校師註記'],
+            high: ['國語', '數學', '自然', '社會', '英文', '其他', '考試', '額外評卷', '請假', '校師註記']
+        };
+
+        const TASKS = {
+            '國語': ['習作', '圈詞', '生字造詞', '造句', '練習本', '訂正', '練習卷', '作文', '學習單', '預習單', '其他'],
+            '數學': ['習作', '數練', '練習卷', '訂正', '其他'],
+            '自然': ['習作', '練習卷', '其他'],
+            '社會': ['習作', '練習卷', '其他'],
+            '英文': ['習作', '練習卷', '其他'],
+            '其他': ['週記', '閱讀心得', '其他'],
+            '額外評卷': ['評量', '考卷', '心智圖', '其他'],
+            '請假': ['病假', '事假', '其他'],
+            '校師註記': ['通知單', '注意事項', '個人在校表現', '考卷簽名', '其他'] 
+        };
+
+        let appData = {
+            currentMode: 'main', 
+            main: { school: '', className: '', teacher: '', grade: 'low', students: [] },
+            sub: { school: '', className: '', teacher: '', grade: 'low', students: [], isActive: false }
+        };
+        
+        let records = {}; 
+        let currentDate = '';
+        let currentStudentId = null;
+        let currentSubject = '';
+        let viewMode = 'table'; 
+        let currentSort = { key: 'rollNo', dir: 'asc' }; 
+        let isBulkAssign = false; 
+        let currentFontSize = 16; 
+        let saveTimeout = null;
+
+        // UI Helpers
+        function showLoading(text = '與雲端同步中...') { 
+            document.getElementById('loadingText').innerText = text;
+            document.getElementById('loadingOverlay').style.display = 'flex'; 
+        }
+        function hideLoading() { 
+            document.getElementById('loadingOverlay').style.display = 'none'; 
+        }
+        function setSyncStatus(text, type='info') {
+            const el = document.getElementById('syncStatus');
+            el.style.display = 'inline-block';
+            el.innerText = text;
+            if(type==='error') el.style.background = 'rgba(231,76,60,0.8)';
+            else if(type==='success') el.style.background = 'rgba(46,204,113,0.8)';
+            else el.style.background = 'rgba(0,0,0,0.2)';
+            
+            if(type==='success') setTimeout(() => { el.style.display = 'none'; }, 2000);
+        }
+
+        async function init() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            currentDate = `${yyyy}-${mm}-${dd}`;
+            document.getElementById('datePicker').value = currentDate;
+
+            const storedFontSize = localStorage.getItem('classManagerFontSize');
+            if (storedFontSize) {
+                currentFontSize = parseInt(storedFontSize, 10);
+                document.documentElement.style.fontSize = currentFontSize + 'px';
+            }
+
+            // 【雲端讀取】向 Apps Script 請求最新資料
+            showLoading('正在從雲端載入資料...');
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                if (data.appData) {
+                    let parsed = JSON.parse(data.appData);
+                    if (!parsed.main) {
+                        appData.main.grade = parsed.grade || 'low';
+                        appData.main.students = parsed.students || [];
+                    } else {
+                        appData = parsed;
+                    }
+                }
+                if (data.records) {
+                    let parsedRecords = JSON.parse(data.records);
+                    for (let date in parsedRecords) {
+                        if (parsedRecords[date] && !parsedRecords[date].main && !parsedRecords[date].sub) {
+                            parsedRecords[date] = { main: parsedRecords[date], sub: {} };
+                        }
+                    }
+                    records = parsedRecords;
+                }
+            } catch (err) {
+                console.error(err);
+                alert("無法連線至 Google 雲端！\n1. 請檢查您的網路狀態。\n2. 請確認 Apps Script 網址與部署權限是否正確。");
+            }
+            hideLoading();
+
+            document.getElementById('datePicker').addEventListener('change', (e) => {
+                currentDate = e.target.value;
+                renderClassToggle();
+                renderViews();
+            });
+
+            updateHeaderTheme();
+            renderClassToggle();
+            renderViews();
+        }
+
+        // 【雲端儲存】儲存全域設定 (阻斷式)
+        async function saveAppData() {
+            showLoading('儲存設定至雲端...');
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ key: 'appData', value: JSON.stringify(appData) }),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+                });
+            } catch (err) {
+                alert('上傳至雲端失敗，請檢查網路！');
+            }
+            hideLoading();
+        }
+
+        // 【雲端儲存】非同步背景儲存作業紀錄 (不阻斷 UI)
+        function queueSaveRecords() {
+            clearTimeout(saveTimeout);
+            setSyncStatus('🔄 同步中...');
+            
+            saveTimeout = setTimeout(async () => {
+                try {
+                    await fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ key: 'records', value: JSON.stringify(records) }),
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                    });
+                    setSyncStatus('✅ 已同步至雲端', 'success');
+                } catch (err) {
+                    setSyncStatus('❌ 同步失敗，請重整', 'error');
+                }
+            }, 1500); // 防抖動: 使用者停止操作 1.5 秒後才發送請求
+        }
+
+
+        // --- 字體縮放控制 ---
+        function changeFontSize(delta) {
+            currentFontSize += delta;
+            if (currentFontSize > 28) currentFontSize = 28;
+            if (currentFontSize < 11) currentFontSize = 11;
+            document.documentElement.style.fontSize = currentFontSize + 'px';
+            localStorage.setItem('classManagerFontSize', currentFontSize);
+        }
+
+        // --- 主題與切換邏輯 ---
+        function updateHeaderTheme() {
+            const curClass = appData[appData.currentMode];
+            let title = '班級作業單';
+            
+            let parts = [];
+            if(curClass.school) parts.push(curClass.school);
+            if(curClass.className) parts.push(curClass.className);
+            let prefix = parts.length > 0 ? parts.join(' ') + ' ' : '';
+            let suffix = curClass.teacher ? ` - ${curClass.teacher}老師` : '';
+            title = `${prefix}班級作業單${suffix}`;
+
+            let modeBadge = appData.currentMode === 'sub' ? '<span style="background:#fff; color:var(--sub-class); padding:2px 8px; border-radius:12px; font-size:0.9rem; margin-left:10px;">代課中</span>' : '';
+            
+            document.getElementById('headerTitle').innerHTML = title + modeBadge;
+            
+            const isSub = appData.currentMode === 'sub';
+            const header = document.getElementById('mainHeader');
+            document.querySelectorAll('.modal-header, .th-dynamic').forEach(el => {
+                if (isSub) el.classList.add('header-sub', 'th-sub');
+                else el.classList.remove('header-sub', 'th-sub');
+            });
+            if (isSub) header.classList.add('header-sub');
+            else header.classList.remove('header-sub');
+        }
+
+        function renderClassToggle() {
+            const container = document.getElementById('classToggleContainer');
+            if (appData.sub.isActive) {
+                const isMain = appData.currentMode === 'main';
+                const btnText = isMain ? '切換至：代課班' : '切換至：原班';
+                const btnClass = isMain ? 'btn-sub' : 'btn-outline';
+                container.innerHTML = `<button class="btn ${btnClass}" onclick="toggleClassMode()">🔄 ${btnText}</button>`;
+            } else {
+                container.innerHTML = `<button class="btn btn-sub" onclick="openSubInitModal()">➕ 代課</button>`;
+            }
+        }
+
+        async function toggleClassMode() {
+            appData.currentMode = appData.currentMode === 'main' ? 'sub' : 'main';
+            await saveAppData();
+            updateHeaderTheme();
+            renderClassToggle();
+            renderViews();
+        }
+
+        // --- 代課班初始化 ---
+        function openSubInitModal() {
+            document.getElementById('subBatchNames').value = '';
+            document.getElementById('subInitModal').style.display = 'block';
+        }
+
+        async function createSubClass(withBatch) {
+            appData.sub.isActive = true;
+            appData.currentMode = 'sub';
+            
+            if (withBatch) {
+                const text = document.getElementById('subBatchNames').value;
+                const names = text.split('\n').map(n => n.trim()).filter(n => n);
+                appData.sub.students = [];
+                for (let i = 0; i < 30; i++) {
+                    if (i < names.length) {
+                        appData.sub.students.push({
+                            id: i, rollNo: i+1, school: '', className: '', name: names[i], engClassType: '資優', engClassInput: ''
+                        });
+                    }
+                }
+            }
+            
+            await saveAppData();
+            closeModal('subInitModal');
+            updateHeaderTheme();
+            renderClassToggle();
+            
+            if (!withBatch) {
+                openSettings(); 
+            } else {
+                renderViews();
+            }
+        }
+
+        async function closeSubClass() {
+            if(confirm('確定要結束代課並清除代課班設定嗎？\n(今日及過去的代課指派紀錄不會被刪除，但代課名單將被移除)')){
+                appData.sub = { school: '', className: '', teacher: '', grade: 'low', students: [], isActive: false };
+                appData.currentMode = 'main';
+                await saveAppData();
+                closeModal('settingsModal');
+                updateHeaderTheme();
+                renderClassToggle();
+                renderViews();
+            }
+        }
+
+        // --- 工具 ---
+        function getChineseUnits() {
+            let opts = '<option value="">選擇範圍</option>';
+            for(let i=1; i<=12; i++) opts += `<option value="L${i}">L${i}</option>`;
+            return opts;
+        }
+        function getMathUnits() {
+            let opts = '<option value="">選擇範圍</option>';
+            for(let i=1; i<=10; i++) opts += `<option value="L${i}">L${i}</option>`;
+            return opts;
+        }
+        function getSciSocUnits() {
+            let opts = '<option value="">選擇範圍</option>';
+            for(let i=1; i<=5; i++) {
+                for(let j=1; j<=4; j++) opts += `<option value="${i}-${j}">${i}-${j}</option>`;
+            }
+            return opts;
+        }
+        function getUnitHTML(subjectType) {
+            if (subjectType === '國語') return `<select class="unit-select">${getChineseUnits()}</select>`;
+            if (subjectType === '數學') return `<select class="unit-select">${getMathUnits()}</select>`;
+            if (subjectType === '自然' || subjectType === '社會') return `<select class="unit-select">${getSciSocUnits()}</select>`;
+            if (subjectType === '英文') return `<input type="text" class="unit-select custom-input" placeholder="自填範圍 (如 U1)">`;
+            return '';
+        }
+        function updateExtraUnit(selectEl) {
+            const subj = selectEl.value;
+            selectEl.nextElementSibling.innerHTML = getUnitHTML(subj);
+        }
+        function getEngClassStr(stu) {
+            return stu.engClassType === 'custom' ? (stu.engClassInput || '無') : (stu.engClassType || '無');
+        }
+
+        // --- 排序與視圖邏輯 ---
+        function toggleViewMode() {
+            viewMode = viewMode === 'table' ? 'grid' : 'table';
+            renderViews();
+        }
+
+        function sortTable(key) {
+            if (currentSort.key === key) {
+                currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.key = key;
+                currentSort.dir = 'asc';
+            }
+            renderViews();
+        }
+
+        function sortStudents(students) {
+            return students.slice().sort((a, b) => {
+                let valA, valB;
+                if(currentSort.key === 'rollNo') { valA = parseInt(a.rollNo) || 0; valB = parseInt(b.rollNo) || 0; } 
+                else if(currentSort.key === 'schoolClass') { valA = (a.school || '') + (a.className || ''); valB = (b.school || '') + (b.className || ''); } 
+                else if(currentSort.key === 'englishClass') { valA = getEngClassStr(a); valB = getEngClassStr(b); } 
+                else { return 0; }
+                
+                if (valA < valB) return currentSort.dir === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        function getSortIcon(key) { return currentSort.key !== key ? '↕' : (currentSort.dir === 'asc' ? '↓' : '↑'); }
+
+        function ensureDailyRecordsExist() {
+            if (!records[currentDate]) { records[currentDate] = { main: {}, sub: {} }; }
+        }
+
+        function renderViews() {
+            const curClass = appData[appData.currentMode];
+            const grid = document.getElementById('studentGrid');
+            const tableContainer = document.getElementById('studentTableContainer');
+
+            if(curClass.students.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:#666;">尚未設定學生名單，請點擊上方「設定」</div>';
+                grid.style.display = 'block';
+                tableContainer.style.display = 'none';
+                return;
+            }
+
+            ensureDailyRecordsExist();
+            const sortedStudents = sortStudents(curClass.students);
+
+            if (viewMode === 'grid') {
+                tableContainer.style.display = 'none';
+                grid.style.display = 'grid';
+                renderGridHTML(sortedStudents);
+            } else {
+                grid.style.display = 'none';
+                tableContainer.style.display = 'block';
+                renderTableHTML(sortedStudents);
+            }
+        }
+
+        function renderGridHTML(sortedStudents) {
+            const grid = document.getElementById('studentGrid');
+            grid.innerHTML = '';
+            const mode = appData.currentMode;
+            
+            sortedStudents.forEach(stu => {
+                const allTasks = records[currentDate][mode][stu.id] || [];
+                const stuTasksSchool = allTasks.filter(t => t.subject !== '校師註記' && t.subject !== '請假' && t.subject !== '評卷指派💪' && t.subject !== '額外評卷');
+                const stuTasksExtra = allTasks.filter(t => t.subject === '評卷指派💪' || t.subject === '額外評卷');
+                const noteTasks = allTasks.filter(t => t.subject === '校師註記');
+                const leaveTasks = allTasks.filter(t => t.subject === '請假');
+
+                const total1 = stuTasksSchool.length;
+                const done1 = stuTasksSchool.filter(t => t.isDone).length;
+                let pct1 = total1 > 0 ? (done1 / total1) * 100 : 0;
+
+                const total2 = stuTasksExtra.length;
+                const done2 = stuTasksExtra.filter(t => t.isDone).length;
+                let pct2 = total2 > 0 ? (done2 / total2) * 100 : 0;
+
+                let statusText1 = total1 > 0 ? `學校: ${done1}/${total1}` : '學校: 無';
+                let statusText2 = total2 > 0 ? `評卷: ${done2}/${total2}` : '評卷: 無';
+                let statusText = `<div style="font-size:0.75rem; margin-top:3px; color:#666;">${statusText1} | ${statusText2}</div>`;
+                
+                if (total1 === 0 && total2 === 0 && (noteTasks.length > 0 || leaveTasks.length > 0)) {
+                    statusText = `<div style="font-size:0.75rem; margin-top:3px; color:var(--note); font-weight:bold;">僅有註記/請假</div>`;
+                }
+
+                let examIconHtml = '';
+                const exams = stuTasksSchool.filter(t => t.isExam);
+                if (exams.length > 0) {
+                    const allExamsDone = exams.every(t => t.isDone);
+                    examIconHtml = allExamsDone ? '<span class="exam-icon">⭐</span>' : '<span class="exam-icon">🚨</span>';
+                }
+                let noteIconHtml = (noteTasks.length > 0 || leaveTasks.length > 0) ? '<span class="note-icon">🏫</span>' : '';
+
+                const card = document.createElement('div');
+                card.className = 'student-card';
+                
+                let bgStyle = '#ffffff';
+                if (total1 > 0 || total2 > 0) {
+                    bgStyle = `linear-gradient(to right, #dcfce7 ${pct1}%, transparent ${pct1}%) 0 0 / 100% 50% no-repeat,
+                               linear-gradient(to right, #e0e7ff ${pct2}%, transparent ${pct2}%) 0 100% / 100% 50% no-repeat,
+                               #ffffff`;
+                }
+                card.style.background = bgStyle;
+
+                let allDone = true;
+                if (total1 > 0 && pct1 < 100) allDone = false;
+                if (total2 > 0 && pct2 < 100) allDone = false;
+                if (total1 === 0 && total2 === 0) allDone = false;
+                card.style.borderColor = allDone ? 'var(--success)' : 'var(--border)';
+
+                card.innerHTML = `
+                    <div class="student-name">${noteIconHtml} ${examIconHtml} ${stu.name}</div>
+                    <div class="progress-text">${stu.school||''} ${stu.className||''}</div>
+                    ${statusText}
+                `;
+                card.onclick = () => openStudentDetail(stu.id, stu.name);
+                grid.appendChild(card);
+            });
+        }
+
+        function renderTableHTML(sortedStudents) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            const mode = appData.currentMode;
+            
+            document.getElementById('th-rollNo').innerText = `序號 ${getSortIcon('rollNo')}`;
+            document.getElementById('th-schoolClass').innerText = `學校-班級 ${getSortIcon('schoolClass')}`;
+            document.getElementById('th-englishClass').innerText = `美語班級 ${getSortIcon('englishClass')}`;
+
+            sortedStudents.forEach(stu => {
+                const allTasks = records[currentDate][mode][stu.id] || [];
+                const stuTasksSchool = allTasks.filter(t => t.subject !== '校師註記' && t.subject !== '請假' && t.subject !== '評卷指派💪' && t.subject !== '額外評卷');
+                const stuTasksExtra = allTasks.filter(t => t.subject === '評卷指派💪' || t.subject === '額外評卷');
+                const noteTasks = allTasks.filter(t => t.subject === '校師註記');
+                const leaveTasks = allTasks.filter(t => t.subject === '請假');
+
+                const total1 = stuTasksSchool.length;
+                const done1 = stuTasksSchool.filter(t => t.isDone).length;
+                const total2 = stuTasksExtra.length;
+                const done2 = stuTasksExtra.filter(t => t.isDone).length;
+                
+                let icon1 = '';
+                const exams1 = stuTasksSchool.filter(t => t.isExam);
+                if (exams1.length > 0) icon1 = exams1.every(t => t.isDone) ? '⭐' : '🚨';
+
+                let html1 = total1 > 0 ? `<div style="font-size:0.9rem;">學校: <b style="color:${done1===total1?'var(--success)':'inherit'}">${done1}/${total1}</b> ${icon1}</div>` : '';
+                let html2 = total2 > 0 ? `<div style="font-size:0.9rem;">評卷: <b style="color:${done2===total2?'var(--extra)':'inherit'}">${done2}/${total2}</b></div>` : '';
+                
+                let statusText = html1 + html2;
+                if (total1 === 0 && total2 === 0) {
+                    statusText = (noteTasks.length > 0 || leaveTasks.length > 0) ? '<span style="color:var(--note); font-weight:bold;">僅註記/假單</span>' : '<span style="color:#999;">無</span>';
+                }
+
+                let badgeHtml = '';
+                if (allTasks.length === 0) {
+                    badgeHtml = '<span style="color:#ccc;">無指派項目</span>';
+                } else {
+                    let badges = [];
+                    stuTasksSchool.forEach(t => {
+                        let badgeClass = t.isDone ? 'badge badge-done' : 'badge badge-undone';
+                        let mark = t.isDone ? '☑️' : '☐';
+                        badges.push(`<span class="${badgeClass}">${mark} ${t.subject}-${t.taskName}</span>`);
+                    });
+                    stuTasksExtra.forEach(t => {
+                        let badgeClass = t.isDone ? 'badge badge-extra-done' : 'badge badge-extra';
+                        let mark = t.isDone ? '☑️' : '☐';
+                        let prefixStr = t.subject === '評卷指派💪' ? '全班💪' : '額外💪';
+                        badges.push(`<span class="${badgeClass}">${mark} ${prefixStr}${t.taskName}</span>`);
+                    });
+                    leaveTasks.forEach(t => {
+                        badges.push(`<span class="badge badge-leave">🛑 ${t.taskName}</span>`);
+                    });
+                    noteTasks.forEach(t => {
+                        badges.push(`<span class="badge badge-note">🏫 ${t.taskName}</span>`);
+                    });
+                    badgeHtml = `<div class="badge-list">${badges.join('')}</div>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align:center;">${stu.rollNo || '-'}</td>
+                    <td>${stu.school || ''} ${stu.className || ''}</td>
+                    <td class="clickable-name" onclick="openStudentDetail(${stu.id}, '${stu.name}')">${stu.name}</td>
+                    <td>${getEngClassStr(stu)}</td>
+                    <td>${statusText}</td>
+                    <td>${badgeHtml}</td>
+                    <td><button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.9rem;" onclick="openStudentDetail(${stu.id}, '${stu.name}')">編輯</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- 設定 Modal ---
+        function openSettings() {
+            const curClass = appData[appData.currentMode];
+            document.getElementById('setting_school').value = curClass.school || '';
+            document.getElementById('setting_class').value = curClass.className || '';
+            document.getElementById('setting_teacher').value = curClass.teacher || '';
+            document.getElementById('gradeSelect').value = curClass.grade || 'low';
+            
+            const container = document.getElementById('studentInputs');
+            container.innerHTML = '';
+            
+            for(let i=0; i<30; i++) {
+                const stu = curClass.students[i] || { name:'', school:'', className:'', engClassType:'資優', engClassInput:'', rollNo: '' };
+                const displayCustom = stu.engClassType === 'custom' ? 'block' : 'none';
+                
+                container.innerHTML += `
+                    <div class="student-setting-row">
+                        <span class="row-index">${i+1}</span>
+                        <input type="number" id="stu_roll_${i}" value="${stu.rollNo || ''}" placeholder="序號" title="點名單序號">
+                        <input type="text" id="stu_school_${i}" value="${stu.school || ''}" placeholder="學校(如:OO)" title="學校">
+                        <input type="text" id="stu_class_${i}" value="${stu.className || ''}" placeholder="班級(如:3-1)" title="班級">
+                        <input type="text" id="stu_name_${i}" value="${stu.name || ''}" placeholder="學生姓名" title="姓名">
+                        <select id="stu_engType_${i}" onchange="toggleEngInputSettings(${i})" title="美語班級">
+                            <option value="資優" ${stu.engClassType==='資優'?'selected':''}>資優</option>
+                            <option value="custom" ${stu.engClassType==='custom'?'selected':''}>手動輸入</option>
+                        </select>
+                        <input type="text" id="stu_engInput_${i}" value="${stu.engClassInput || ''}" placeholder="輸入美語班級" style="display: ${displayCustom};" title="自訂美語班級">
+                    </div>
+                `;
+            }
+
+            document.getElementById('endSubBtn').style.display = appData.currentMode === 'sub' ? 'block' : 'none';
+            document.getElementById('settingsModal').style.display = 'block';
+        }
+
+        function toggleEngInputSettings(index) {
+            const select = document.getElementById(`stu_engType_${index}`);
+            const input = document.getElementById(`stu_engInput_${index}`);
+            input.style.display = select.value === 'custom' ? 'block' : 'none';
+        }
+
+        async function saveSettings() {
+            const curClass = appData[appData.currentMode];
+            curClass.school = document.getElementById('setting_school').value.trim();
+            curClass.className = document.getElementById('setting_class').value.trim();
+            curClass.teacher = document.getElementById('setting_teacher').value.trim();
+            curClass.grade = document.getElementById('gradeSelect').value;
+            
+            curClass.students = [];
+            for(let i=0; i<30; i++) {
+                const name = document.getElementById(`stu_name_${i}`).value.trim();
+                if(name) {
+                    curClass.students.push({
+                        id: i,
+                        rollNo: document.getElementById(`stu_roll_${i}`).value.trim(),
+                        school: document.getElementById(`stu_school_${i}`).value.trim(),
+                        className: document.getElementById(`stu_class_${i}`).value.trim(),
+                        name: name,
+                        engClassType: document.getElementById(`stu_engType_${i}`).value,
+                        engClassInput: document.getElementById(`stu_engInput_${i}`).value.trim()
+                    });
+                }
+            }
+            await saveAppData();
+            closeModal('settingsModal');
+            updateHeaderTheme();
+            renderViews();
+        }
+
+        function clearStudentList() {
+            if (confirm("警告：確定要清空學生名單嗎？")) {
+                for(let i=0; i<30; i++) {
+                    document.getElementById(`stu_roll_${i}`).value = '';
+                    document.getElementById(`stu_school_${i}`).value = '';
+                    document.getElementById(`stu_class_${i}`).value = '';
+                    document.getElementById(`stu_name_${i}`).value = '';
+                    document.getElementById(`stu_engType_${i}`).value = '資優';
+                    document.getElementById(`stu_engInput_${i}`).value = '';
+                    toggleEngInputSettings(i);
+                }
+            }
+        }
+
+        // --- 全班統一指派 ---
+        function openBulkTaskSelect() {
+            const curClass = appData[appData.currentMode];
+            if (curClass.students.length === 0) {
+                alert('目前名單為空，請先至「設定」新增學生！');
+                return;
+            }
+            isBulkAssign = true;
+            currentSubject = '評卷指派💪';
+            document.getElementById('currentSubjectTitle').innerText = `全班統一指派：評卷與測驗`;
+            
+            const optionsDiv = document.getElementById('taskOptions');
+            optionsDiv.innerHTML = '';
+            
+            const tasks = TASKS['額外評卷'];
+            tasks.forEach(task => {
+                const row = document.createElement('div');
+                row.className = 'task-row';
+                if (task === '評量' || task === '考卷') {
+                    const subjs = curClass.grade === 'low' ? ['國語', '數學'] : ['國語', '數學', '自然', '社會', '英文'];
+                    let subjOpts = subjs.map(s => `<option value="${s}">${s}</option>`).join('');
+                    row.innerHTML = `
+                        <div class="task-main">
+                            <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                        </div>
+                        <div class="task-details" style="display:none;">
+                            <select class="extra-subj" onchange="updateExtraUnit(this)">${subjOpts}</select>
+                            <span class="extra-unit-container">${getUnitHTML(subjs[0])}</span>
+                        </div>
+                    `;
+                } else if (task === '心智圖' || task === '其他') {
+                    row.innerHTML = `
+                        <div class="task-main">
+                            <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                        </div>
+                        <div class="task-details" style="display:none; width: 100%;">
+                            <input type="text" class="custom-input task-extra-input" placeholder="請輸入內容/範圍" style="width: 100%;">
+                        </div>
+                    `;
+                }
+                optionsDiv.appendChild(row);
+            });
+            document.getElementById('saveTaskBtn').innerText = `確認全班指派 (${curClass.students.length}人)`;
+            document.getElementById('taskSelectModal').style.display = 'block';
+        }
+
+        // --- 學生詳細紀錄 ---
+        function openStudentDetail(stuId, stuName) {
+            isBulkAssign = false;
+            currentStudentId = stuId;
+            document.getElementById('currentStudentName').innerText = `${stuName} 的紀錄本`;
+            
+            const tagsDiv = document.getElementById('subjectTags');
+            tagsDiv.innerHTML = '';
+            const curClass = appData[appData.currentMode];
+            const subjects = SUBJECTS[curClass.grade];
+            subjects.forEach(sub => {
+                const tag = document.createElement('div');
+                tag.className = 'subject-tag';
+                
+                if (sub === '考試') { tag.innerText = `📝 ${sub}`; tag.style.background = '#fef08a'; tag.style.fontWeight = 'bold'; } 
+                else if (sub === '請假') { tag.innerText = `🛑 ${sub}`; tag.style.background = '#f87171'; tag.style.color = 'white'; tag.style.fontWeight = 'bold'; } 
+                else if (sub === '校師註記') { tag.innerText = `🏫 ${sub}`; tag.style.background = 'var(--note)'; tag.style.color = 'white'; tag.style.fontWeight = 'bold'; } 
+                else if (sub === '額外評卷') { tag.innerText = `💪${sub}`; tag.style.background = '#e0e7ff'; tag.style.color = 'var(--extra)'; tag.style.fontWeight = 'bold'; } 
+                else { tag.innerText = `＋ ${sub}`; }
+                
+                tag.onclick = () => openTaskSelect(sub);
+                tagsDiv.appendChild(tag);
+            });
+
+            renderTaskList();
+            document.getElementById('studentDetailModal').style.display = 'block';
+        }
+
+        function renderTaskList() {
+            const listDiv = document.getElementById('taskList');
+            listDiv.innerHTML = '';
+            const mode = appData.currentMode;
+            ensureDailyRecordsExist();
+            const stuTasks = records[currentDate][mode][currentStudentId] || [];
+
+            if(stuTasks.length === 0) {
+                listDiv.innerHTML = '<p style="color:#999; text-align:center;">今日尚無指派內容</p>';
+                return;
+            }
+
+            stuTasks.forEach((task, index) => {
+                const item = document.createElement('div');
+                item.className = 'task-item';
+                
+                const checkMark = task.isDone ? '☑️' : '';
+                const btnClass = task.isDone ? 'check-btn checked' : 'check-btn';
+                let specialBadge = '';
+                
+                if (task.subject === '評卷指派💪') specialBadge = '<span class="task-exam-badge" style="background:var(--extra);">💪全班評卷</span>';
+                else if (task.subject === '額外評卷') specialBadge = '<span class="task-exam-badge" style="background:var(--extra);">💪個別評卷</span>';
+                else if (task.isExam) specialBadge = '<span class="task-exam-badge">考試</span>';
+                else if (task.subject === '請假') specialBadge = '<span class="task-exam-badge" style="background:#f87171;">假單</span>';
+                else if (task.subject === '校師註記') specialBadge = '<span class="task-exam-badge" style="background:var(--note);">註記</span>';
+
+                item.innerHTML = `
+                    <div class="task-info">
+                        <div class="task-subject">${task.subject} ${specialBadge}</div>
+                        <div class="task-name">${task.taskName}</div>
+                    </div>
+                    <div class="${btnClass}" onclick="toggleTask(${index})">${checkMark}</div>
+                `;
+                listDiv.appendChild(item);
+            });
+            renderViews(); 
+        }
+
+        function toggleTask(taskIndex) {
+            const mode = appData.currentMode;
+            records[currentDate][mode][currentStudentId][taskIndex].isDone = !records[currentDate][mode][currentStudentId][taskIndex].isDone;
+            renderTaskList();
+            queueSaveRecords(); // 【連線版】觸發非同步儲存
+        }
+
+        function toggleDetails(checkbox) {
+            const details = checkbox.closest('.task-row').querySelector('.task-details');
+            if (details) details.style.display = checkbox.checked ? 'flex' : 'none';
+        }
+        
+        function toggleStdInput(selectEl) {
+            const input = selectEl.nextElementSibling;
+            if (selectEl.value === "頁數" || selectEl.value === "第_課") {
+                input.style.display = 'block';
+                input.focus();
+            } else {
+                input.style.display = 'none';
+                input.value = '';
+            }
+        }
+
+        function openTaskSelect(subject) {
+            isBulkAssign = false;
+            currentSubject = subject;
+            document.getElementById('currentSubjectTitle').innerText = `選擇「${subject}」項目`;
+            const optionsDiv = document.getElementById('taskOptions');
+            optionsDiv.innerHTML = '';
+            const curClass = appData[appData.currentMode];
+
+            if (subject === '考試') {
+                const examSubjects = curClass.grade === 'low' ? ['國語', '數學'] : ['國語', '數學', '自然', '社會', '英文'];
+                examSubjects.forEach(exSub => {
+                    const row = document.createElement('div');
+                    row.className = 'task-row';
+                    let extra = `<label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="exam-dictation" style="width:18px;height:18px;">聽寫</label>`;
+                    row.innerHTML = `
+                        <div class="task-main">
+                            <input type="checkbox" value="${exSub}" class="task-checkbox exam-checkbox" onchange="toggleDetails(this)"> 考 ${exSub}
+                        </div>
+                        <div class="task-details" style="display:none;">
+                            ${getUnitHTML(exSub)}
+                            ${exSub === '國語' ? extra : ''}
+                        </div>
+                    `;
+                    optionsDiv.appendChild(row);
+                });
+            } else if (subject === '額外評卷') {
+                const tasks = TASKS[subject];
+                tasks.forEach(task => {
+                    const row = document.createElement('div');
+                    row.className = 'task-row';
+                    if (task === '評量' || task === '考卷') {
+                        const subjs = curClass.grade === 'low' ? ['國語', '數學'] : ['國語', '數學', '自然', '社會', '英文'];
+                        let subjOpts = subjs.map(s => `<option value="${s}">${s}</option>`).join('');
+                        row.innerHTML = `
+                            <div class="task-main">
+                                <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                            </div>
+                            <div class="task-details" style="display:none;">
+                                <select class="extra-subj" onchange="updateExtraUnit(this)">${subjOpts}</select>
+                                <span class="extra-unit-container">${getUnitHTML(subjs[0])}</span>
+                            </div>
+                        `;
+                    } else if (task === '心智圖' || task === '其他') {
+                        row.innerHTML = `
+                            <div class="task-main">
+                                <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                            </div>
+                            <div class="task-details" style="display:none; width: 100%;">
+                                <input type="text" class="custom-input task-extra-input" placeholder="請輸入內容/範圍" style="width: 100%;">
+                            </div>
+                        `;
+                    }
+                    optionsDiv.appendChild(row);
+                });
+            } else if (subject === '請假' || subject === '校師註記' || subject === '其他') {
+                const tasks = TASKS[subject] || [];
+                tasks.forEach(task => {
+                    const row = document.createElement('div');
+                    row.className = 'task-row';
+                    if (task === '其他' || task === '週記' || task === '閱讀心得') {
+                        let placeholderText = (subject === '請假') ? '請輸入假別事由' : '請輸入內容';
+                        row.innerHTML = `
+                            <div class="task-main">
+                                <input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}
+                            </div>
+                            <div class="task-details" style="display:none; width: 100%;">
+                                <input type="text" class="custom-input task-extra-input" placeholder="${placeholderText}" style="width: 100%;">
+                            </div>
+                        `;
+                    } else {
+                        row.innerHTML = `
+                            <div class="task-main">
+                                <input type="checkbox" value="${task}" class="task-checkbox std-task-checkbox"> ${task}
+                            </div>
+                        `;
+                    }
+                    optionsDiv.appendChild(row);
+                });
+            } else {
+                const tasks = TASKS[subject] || [];
+                tasks.forEach(task => {
+                    const row = document.createElement('div');
+                    row.className = 'task-row';
+                    if (task === '其他' || task === '作文') {
+                        row.innerHTML = `
+                            <div class="task-main"><input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}</div>
+                            <div class="task-details" style="display:none; width: 100%;"><input type="text" class="custom-input task-extra-input" placeholder="請輸入內容" style="width: 100%;"></div>
+                        `;
+                    } else if (task === '練習卷' || task === '學習單' || task === '預習單') {
+                        row.innerHTML = `
+                            <div class="task-main"><input type="checkbox" value="${task}" class="task-checkbox" onchange="toggleDetails(this)"> ${task}</div>
+                            <div class="task-details" style="display:none;">${getUnitHTML(subject === '國語' ? '國語' : subject)}</div>
+                        `;
+                    } else {
+                        let extraOption = (task === '訂正') ? '<option value="聯絡簿">聯絡簿</option>' : '';
+                        row.innerHTML = `
+                            <div class="task-main"><input type="checkbox" value="${task}" class="task-checkbox std-task-checkbox" onchange="toggleDetails(this)"> ${task}</div>
+                            <div class="task-details" style="display:none;">
+                                <select class="detail-type" onchange="toggleStdInput(this)">
+                                    <option value="">無補充</option>${extraOption}
+                                    <option value="頁數">頁數</option><option value="第_課">第_課</option>
+                                </select>
+                                <input type="text" class="detail-input" placeholder="例如: 10-12" style="display:none; width: 120px;">
+                            </div>
+                        `;
+                    }
+                    optionsDiv.appendChild(row);
+                });
+            }
+            document.getElementById('saveTaskBtn').innerText = '選擇完畢';
+            document.getElementById('taskSelectModal').style.display = 'block';
+        }
+
+        function saveTaskSelection() {
+            const mode = appData.currentMode;
+            ensureDailyRecordsExist();
+            let newTasks = [];
+            const rows = document.querySelectorAll('.task-row');
+            
+            rows.forEach(row => {
+                const checkbox = row.querySelector('.task-checkbox');
+                if (checkbox && checkbox.checked) {
+                    if (currentSubject === '考試') {
+                        const exSub = checkbox.value; 
+                        const unitSelect = row.querySelector('.unit-select');
+                        let unit = unitSelect ? unitSelect.value.trim() : '';
+                        let dictationStr = '';
+                        const dictCheckbox = row.querySelector('.exam-dictation');
+                        if (dictCheckbox && dictCheckbox.checked) dictationStr = '聽寫';
+
+                        let nameParts = [];
+                        if (unit) nameParts.push(unit);
+                        if (dictationStr) nameParts.push(dictationStr);
+                        
+                        let taskName = `${exSub}`;
+                        if (nameParts.length > 0) taskName += ` (${nameParts.join(', ')})`;
+                        
+                        newTasks.push({ name: taskName, isExam: true });
+                    } else if (currentSubject === '評卷指派💪' || currentSubject === '額外評卷') {
+                        const task = checkbox.value;
+                        if (task === '評量' || task === '考卷') {
+                            const subjSelect = row.querySelector('.extra-subj');
+                            const unitSelect = row.querySelector('.extra-unit-container .unit-select');
+                            let subj = subjSelect ? subjSelect.value : '';
+                            let unit = unitSelect ? unitSelect.value.trim() : '';
+                            let name = `${task}-${subj}`;
+                            if (unit) name += ` (${unit})`;
+                            newTasks.push({ name: name, isExam: false });
+                        } else {
+                            const input = row.querySelector('.task-extra-input').value.trim();
+                            let name = input ? `${task} (${input})` : task;
+                            newTasks.push({ name: name, isExam: false });
+                        }
+                    } else {
+                        const task = checkbox.value;
+                        if (task === '其他' || task === '作文' || task === '週記' || task === '閱讀心得') {
+                            const input = row.querySelector('.task-extra-input').value.trim();
+                            let name = input ? `${task} (${input})` : task;
+                            newTasks.push({ name: name, isExam: false });
+                        } else if (task === '練習卷' || task === '學習單' || task === '預習單') {
+                            const unitSelect = row.querySelector('.unit-select');
+                            let unit = unitSelect ? unitSelect.value.trim() : '';
+                            let name = unit ? `${task} (${unit})` : task;
+                            newTasks.push({ name: name, isExam: false });
+                        } else {
+                            const detailTypeEl = row.querySelector('.detail-type');
+                            const detailInputEl = row.querySelector('.detail-input');
+                            let name = task;
+                            if (detailTypeEl) {
+                                const detailType = detailTypeEl.value;
+                                let detailInput = '';
+                                if(detailInputEl) detailInput = detailInputEl.value.trim();
+                                if (detailType === '聯絡簿') name += ` (聯絡簿)`;
+                                else if (detailType && detailInput) {
+                                    if (detailType === '頁數') name += ` (p.${detailInput})`;
+                                    else name += ` (${detailType.replace('_', detailInput)})`; 
+                                }
+                            }
+                            newTasks.push({ name: name, isExam: false });
+                        }
+                    }
+                }
+            });
+
+            if (isBulkAssign) {
+                const curClass = appData[mode];
+                curClass.students.forEach((stu, index) => {
+                    if (!records[currentDate][mode][stu.id]) records[currentDate][mode][stu.id] = [];
+                    newTasks.forEach((t, tIndex) => {
+                        records[currentDate][mode][stu.id].push({
+                            id: Date.now() + Math.random() + index + tIndex,
+                            subject: currentSubject,
+                            taskName: t.name,
+                            isDone: false,
+                            isExam: t.isExam
+                        });
+                    });
+                });
+            } else {
+                if (!records[currentDate][mode][currentStudentId]) records[currentDate][mode][currentStudentId] = [];
+                newTasks.forEach((t, tIndex) => {
+                    records[currentDate][mode][currentStudentId].push({
+                        id: Date.now() + Math.random() + tIndex,
+                        subject: currentSubject,
+                        taskName: t.name,
+                        isDone: false,
+                        isExam: t.isExam
+                    });
+                });
+            }
+
+            closeModal('taskSelectModal');
+            queueSaveRecords(); // 【連線版】觸發非同步儲存
+            
+            if (isBulkAssign) renderViews();
+            else renderTaskList();
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function exportStudentList(includeProgress) {
+            const curClass = appData[appData.currentMode];
+            const mode = appData.currentMode;
+            
+            if (curClass.students.length === 0) {
+                alert('目前名單為空，無法匯出！');
+                return;
+            }
+            ensureDailyRecordsExist();
+            let csvContent = '\uFEFF'; 
+            const sortedStudents = sortStudents(curClass.students);
+            const escapeCSV = (str) => `"${(str||'').replace(/"/g, '""')}"`;
+
+            if (!includeProgress) {
+                csvContent += "點名單序號,學校,班級,姓名,美語班級\n";
+                sortedStudents.forEach(stu => {
+                    const engStr = getEngClassStr(stu);
+                    csvContent += `${stu.rollNo||''},${stu.school||''},${stu.className||''},${stu.name},${engStr}\n`;
+                });
+            } else {
+                csvContent += "點名單序號,學校,班級,姓名,美語班級,狀態進度,作業與考試清單,請假紀錄,校師註記\n";
+                sortedStudents.forEach(stu => {
+                    const allTasks = records[currentDate][mode][stu.id] || [];
+                    const engStr = getEngClassStr(stu);
+                    
+                    if (allTasks.length === 0) {
+                        csvContent += `${stu.rollNo||''},${stu.school||''},${stu.className||''},${stu.name},${engStr},無紀錄,無,無,無\n`;
+                    } else {
+                        const stuTasksSchool = allTasks.filter(t => t.subject !== '校師註記' && t.subject !== '請假' && t.subject !== '評卷指派💪' && t.subject !== '額外評卷');
+                        const stuTasksExtra = allTasks.filter(t => t.subject === '評卷指派💪' || t.subject === '額外評卷');
+                        const leaveTasks = allTasks.filter(t => t.subject === '請假');
+                        const noteTasks = allTasks.filter(t => t.subject === '校師註記');
+
+                        const total1 = stuTasksSchool.length;
+                        const done1 = stuTasksSchool.filter(t => t.isDone).length;
+                        const total2 = stuTasksExtra.length;
+                        const done2 = stuTasksExtra.filter(t => t.isDone).length;
+
+                        let statusStr = '';
+                        if (total1 > 0 || total2 > 0) {
+                            let s1 = total1 > 0 ? `學校:${done1}/${total1}` : '';
+                            let s2 = total2 > 0 ? `評卷:${done2}/${total2}` : '';
+                            statusStr = [s1, s2].filter(Boolean).join(' | ');
+                        } else if (noteTasks.length > 0 || leaveTasks.length > 0) {
+                            statusStr = '僅註記/請假';
+                        }
+
+                        let taskStrs = [];
+                        stuTasksSchool.forEach(t => taskStrs.push(`${t.subject}-${t.taskName}(${t.isDone?'完成':'未完'})`));
+                        stuTasksExtra.forEach(t => {
+                            let prefix = t.subject === '評卷指派💪' ? '全班💪' : '額外💪';
+                            taskStrs.push(`${prefix}${t.taskName}(${t.isDone?'完成':'未完'})`);
+                        });
+                        let taskListStr = taskStrs.join('; ');
+                        let leaveStrs = leaveTasks.map(t => t.taskName).join('; ');
+                        let noteStrs = noteTasks.map(t => t.taskName).join('; ');
+
+                        csvContent += `${stu.rollNo||''},${stu.school||''},${stu.className||''},${stu.name},${engStr},${escapeCSV(statusStr)},${escapeCSV(taskListStr||'無')},${escapeCSV(leaveStrs||'無')},${escapeCSV(noteStrs||'無')}\n`;
+                    }
+                });
+            }
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            let prefix = mode === 'sub' ? '代課班' : '原班';
+            let typeStr = includeProgress ? '作業紀錄' : '學生名單';
+            link.download = `${prefix}_${typeStr}_${currentDate}.csv`;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
